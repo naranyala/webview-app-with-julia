@@ -1,0 +1,37 @@
+# ─── Julia ───────────────────────────────────────────────────────────────────
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+Manifest.toml
+deps/build.log
+docs/build/
+docs/site/
+
+# ─── Native build ────────────────────────────────────────────────────────────
+native/vendor/
+native/build/
+native/lib/
+
+# ─── Node / npm ──────────────────────────────────────────────────────────────
+frontend-preact/node_modules/
+frontend-preact/dist/
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ─── IDE / editor ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ─── Environment ─────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── App-generated data ──────────────────────────────────────────────────────
+data/

@@ -1,0 +1,47 @@
+{
+  "name": "frontend-exploration-of-preact",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run check && npm run check:bindings && node build.js",
+    "check": "node node_modules/@biomejs/biome/bin/biome check .",
+    "check:bindings": "node check-bindings.cjs",
+    "test": "node check-backend-errors.mjs && node check-quiz-data.mjs && node check-qna.mjs && node check-note-markdown.mjs && node check-todo-calendar.mjs && node check-schemas.mjs && node check-paper.mjs && node check-mir.mjs && node check-assets.mjs && node check-indonesia-map.mjs && node check-autosave.mjs && node check-note-search.mjs && node check-note-search-benchmark.mjs && node check-note-pdf.mjs && node check-note-pdf-benchmark.mjs && node check-paper-pdf.mjs && node check-paper-pdf-benchmark.mjs && npm run test:components",
+    "test:components": "node node_modules/vitest/vitest.mjs run",
+    "check:write": "node node_modules/@biomejs/biome/bin/biome check --write .",
+    "benchmark:notes": "node benchmark-notes-search.mjs",
+    "benchmark:pdf": "node benchmark-note-pdf.mjs",
+    "benchmark:paper": "node benchmark-paper-pdf.mjs",
+    "map:refresh": "node scripts/generate-indonesia-map-data.mjs",
+    "map:check": "node check-indonesia-map.mjs",
+    "dev": "npm run check && node build.js --watch --serve",
+    "format": "node node_modules/@biomejs/biome/bin/biome format --write .",
+    "format:check": "node node_modules/@biomejs/biome/bin/biome format .",
+    "lint": "node node_modules/@biomejs/biome/bin/biome lint .",
+    "serve": "node build.js --serve"
+  },
+  "dependencies": {
+    "@stylexjs/stylex": "^0.19.0",
+    "fuzzysort": "^4.0.2",
+    "jspdf": "^4.2.1",
+    "leaflet": "^1.9.4",
+    "pdf-lib": "^1.17.1",
+    "pdfmake": "^0.3.11",
+    "preact": "^10.27.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.11",
+    "@preact/preset-vite": "^2.10.6",
+    "@stylexjs/unplugin": "^0.19.0",
+    "@testing-library/preact": "^3.2.4",
+    "esbuild": "^0.25.9",
+    "fast-fuzzy": "^1.12.0",
+    "fuse.js": "^7.5.0",
+    "jsdom": "^30.0.1",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
+  },
+  "overrides": {
+    "esbuild": "$esbuild"
+  }
+}
