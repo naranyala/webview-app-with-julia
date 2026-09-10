@@ -1,100 +1,151 @@
-# Julia Starter With Manual WebView Bindings
+# Julia + Preact WebView App
 
-A Julia desktop application starter with an HTML/CSS/JavaScript frontend. The launcher uses direct `ccall` bindings to the official [`webview`](https://github.com/webview/webview) C API instead of a Julia WebView wrapper package.
+A Linux-first desktop toolkit with a Julia/WebView shell and a Preact
+frontend. Julia creates the native window through direct `ccall` bindings to
+the official [webview C API](https://github.com/webview/webview); the frontend
+is bundled into a single HTML file for the launcher and can also run in a
+browser with mock backend behavior.
+
+## Current status
+
+The active launcher exposes six frontend tools:
+
+- Sample Library
+- Monitor EQ
+- Tab Vault
+- MIR Papers
+- MIR Lab
+- Indonesia Map
+
+Chain Notes, Quiz, Todos, and Blender Companion components are present under
+`frontend-preact/src/plugins/` but are not currently registered in the active
+shell.
+
+The native Julia entry point currently implements the small WebView bridge used
+by the legacy Fibonacci example: `calculateFibonacci`, `closeWindow`, and
+`closeApp`. The frontend adapter contains a broader modeled backend contract
+and falls back to mocks when those bindings are unavailable. The Zig backend
+tree referenced by the binding checker is not included in this checkout, so
+the full frontend contract is not yet native-backed.
+
+For the detailed repository guide, see [`docs/README.md`](docs/README.md).
 
 ## Requirements
 
 - Julia 1.10 or newer
-- GCC or Clang, CMake, and Git
-- A desktop session with a display server
-- GTK 3 and WebKitGTK development libraries on Linux
+- Node.js and npm
+- A C++ compiler, CMake, Git, and `pkg-config`
+- A Linux desktop session with a display server
+- GTK 3 development libraries
+- WebKitGTK 4.1 development libraries
 
-### Linux dependencies
-
-For AlmaLinux or Fedora:
+The launcher checks for `gtk+-3.0` and `webkit2gtk-4.1`. On Debian or Ubuntu,
+the usual package set is:
 
 ```sh
-sudo dnf install gcc-c++ cmake git pkgconf-pkg-config gtk3-devel webkit2gtk3-devel
+sudo apt install build-essential cmake git pkg-config \
+  libgtk-3-dev libwebkit2gtk-4.1-dev
 ```
 
-For Debian or Ubuntu:
+On Fedora or AlmaLinux, install the corresponding `gtk3-devel` and
+`webkit2gtk4.1-devel` packages.
+
+## Install dependencies
 
 ```sh
-sudo apt install build-essential cmake git pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev
-```
-
-For Arch Linux:
-
-```sh
-sudo pacman -S base-devel cmake git webkit2gtk
-```
-
-## Build the frontend
-
-The Julia launcher loads the self-contained production bundle from
-`frontend-preact/dist/index.html`. Build it whenever the Preact source changes:
-
-```sh
-npm --prefix frontend-preact install
-npm --prefix frontend-preact run build
-```
-
-## Install Julia dependencies
-
-```sh
+npm --prefix frontend-preact ci
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
-The Julia side uses `JSON3` for the binding request payloads. The WebView runtime is built separately from the official C library.
-
-## Build the native WebView library
-
-This downloads `webview` v0.12.0 into the ignored `native/vendor/` directory and builds `native/lib/libwebview.so` plus the Julia queue bridge:
+## Run the desktop app
 
 ```sh
-./native/build_webview.sh
+./run.sh
 ```
 
-## Launch the desktop frontend
+The launcher checks prerequisites, builds the frontend when its generated
+bundle is missing or stale, builds the native libraries when needed, prepares
+Julia, and starts `bin/webview_app.jl`.
 
 ```sh
-julia --project=. bin/webview_app.jl
+./run.sh --build       # force a full rebuild
+./run.sh --dev         # enable WebView debug tools
+./run.sh --build-dev   # rebuild and enable debug tools
+./run.sh --help
 ```
 
-The window loads the final Preact toolkit from `frontend-preact/dist/index.html`. Its JavaScript calls the native `window.*` bindings exposed by the launcher; bindings not implemented by the Julia starter use the frontend's browser-safe mock behavior.
+The native build downloads WebView v0.12.0 into ignored build directories and
+produces:
 
-Use a different native library path when needed:
+- `native/lib/libwebview.so`
+- `native/lib/libjulia_webview_bridge.so`
+
+## Frontend development
 
 ```sh
-JULIA_WEBVIEW_LIBRARY=/path/to/libwebview.so julia --project=. bin/webview_app.jl
+npm --prefix frontend-preact run dev
 ```
 
-Enable developer tools when supported:
+Open <http://localhost:3000>. This is the fastest way to work on Preact tools;
+it uses the browser mock adapter and does not require the native toolchain.
+
+Build the production bundle explicitly with:
 
 ```sh
-JULIA_WEBVIEW_DEBUG=1 julia --project=. bin/webview_app.jl
+npm --prefix frontend-preact run build
 ```
 
-Use a different built frontend path when needed:
+The source entry point is `frontend-preact/src/main.jsx`. The build writes
+assets to `frontend-preact/public/assets/` and the single-file launcher bundle
+to `frontend-preact/dist/index.html`.
 
-```sh
-JULIA_FRONTEND_HTML=/path/to/index.html julia --project=. bin/webview_app.jl
-```
-
-## Run the tests
+## Tests and checks
 
 ```sh
 julia --project=. -e 'using Pkg; Pkg.test()'
+npm --prefix frontend-preact test
+npm --prefix frontend-preact run map:check
 ```
 
-The tests cover the Julia calculation and frontend HTML without opening a GUI window.
+The Julia tests cover the application logic and built HTML. The frontend suite
+covers backend errors, schemas, Markdown, Q&A, paper/citation logic, MIR math,
+asset helpers, map data, autosave, search, PDF output, and Preact components.
 
-## Project layout
+Current repository-state caveats are documented in
+[`docs/testing.md`](docs/testing.md): the formatter reports existing changes in
+`tab-vault.jsx` and StyleX files, and the binding checker references the absent
+`src/backend/core_plugin.zig` tree. Since `npm run build` runs those checks
+first, resolve them before relying on a clean production build from scratch.
 
-- `Project.toml` describes the Julia project and dependencies.
-- `src/JuliaStarter.jl` contains the application logic.
-- `src/ManualWebview.jl` contains the direct C ABI bindings.
-- `frontend-preact/dist/index.html` is the self-contained production frontend bundle.
-- `bin/webview_app.jl` creates the native window and registers the bridge callbacks.
-- `native/build_webview.sh` builds the pinned native `webview` library.
-- `test/runtests.jl` contains the test suite.
+## Runtime overrides
+
+```sh
+JULIA_FRONTEND_HTML=/path/to/index.html \
+  julia --project=. bin/webview_app.jl
+
+JULIA_WEBVIEW_LIBRARY=/path/to/libwebview.so \
+JULIA_WEBVIEW_BRIDGE_LIBRARY=/path/to/libjulia_webview_bridge.so \
+  julia --project=. bin/webview_app.jl
+
+JULIA_WEBVIEW_DEBUG=1 julia --project=. bin/webview_app.jl
+```
+
+## Repository layout
+
+```text
+.
+├── bin/                         Julia entry points
+├── src/                         Julia package and manual WebView wrapper
+├── native/                      C++ bridge and native build script
+├── frontend-preact/
+│   ├── src/                     Preact shell, adapter, and plugins
+│   ├── public/                  HTML template and checked-in assets
+│   ├── plugins/                 esbuild plugins
+│   └── scripts/                 data-generation scripts
+├── web/                         Legacy standalone Fibonacci HTML example
+├── test/                        Julia tests
+└── docs/                        Maintainer and user documentation
+```
+
+For architecture, backend payloads, tool behavior, and maintenance details,
+start with [`docs/README.md`](docs/README.md).
