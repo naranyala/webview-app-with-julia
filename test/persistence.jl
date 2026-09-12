@@ -1,6 +1,6 @@
 using Test
 using JSON3
-using JuliaStarter.Persistence
+using WebViewApp.Persistence
 
 @testset "Persistence" begin
     mktempdir() do directory

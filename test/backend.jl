@@ -1,6 +1,6 @@
 using Test
-using JuliaStarter
-using JuliaStarter.Backend
+using WebViewApp
+using WebViewApp.Backend
 using JSON3
 using Aural
 

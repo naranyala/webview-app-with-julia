@@ -3,16 +3,16 @@
 # Application entry point. Creates the native webview window, registers all
 # frontend bindings on the request queue, and runs the event loop.
 
-using JuliaStarter
-using JuliaStarter.ManualWebview
-using JuliaStarter.Backend
+using WebViewApp
+using WebViewApp.ManualWebview
+using WebViewApp.Backend
 using JSON3
 
 function main()
     debug = get(ENV, "JULIA_WEBVIEW_DEBUG", "0") == "1"
     webview = ManualWebview.create(debug=debug)
     queue = ManualWebview.create_queue()
-    ManualWebview.set_title!(webview, "Julia Starter")
+    ManualWebview.set_title!(webview, "WebView App")
     ManualWebview.set_size!(webview, 960, 640)
 
     # All bindings the frontend expects are registered on the queue.

@@ -1,12 +1,12 @@
 """
-    JuliaStarter
+    WebViewApp
 
-Top-level package for the webview desktop toolkit. Includes all submodules in
+Top-level package for the WebView desktop application. Includes all submodules in
 dependency order: ManualWebview (no Julia deps) → AudioAnalysisAdapter (Aural)
 → Jobs, Persistence (standalone) → filesystem/PDF/BibTeX/Blender utilities
 → Backend (depends on everything above).
 """
-module JuliaStarter
+module WebViewApp
 
 export AudioAnalysisAdapter, Backend, BibTeX, BlendReader, FileTrees, Jobs, PDFGen,
     Persistence, StaticMediaAdapter,

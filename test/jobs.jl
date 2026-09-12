@@ -1,5 +1,5 @@
 using Test
-using JuliaStarter.Jobs
+using WebViewApp.Jobs
 
 @testset "Jobs" begin
     @testset "constructor and creation" begin

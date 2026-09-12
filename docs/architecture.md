@@ -31,7 +31,7 @@ ID.
 
 | Layer | Location | Responsibility |
 | --- | --- | --- |
-| Julia package | `src/JuliaStarter.jl` | Package exports, frontend loading, and CLI greeting. |
+| Julia package | `src/WebViewApp.jl` | Package exports, frontend loading, and CLI greeting. |
 | Julia backend | `src/Backend.jl` | JSON RPC routing, persistence, asset jobs, and app-owned DTOs. |
 | Audio adapter | `src/AudioAnalysisAdapter.jl` | Validates bridge input and translates bounded audio work through Aural.jl. |
 | Julia WebView wrapper | `src/ManualWebview.jl` | Direct `ccall` declarations for window, HTML, event loop, binding, and return APIs. |

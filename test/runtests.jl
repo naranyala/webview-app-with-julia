@@ -1,7 +1,7 @@
 using Test
-using JuliaStarter
+using WebViewApp
 
-@testset "JuliaStarter" begin
+@testset "WebViewApp" begin
     @test greet() == "Hello, world!"
     @test greet("Julia") == "Hello, Julia!"
     @test fibonacci(0) == 0

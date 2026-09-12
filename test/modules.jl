@@ -1,5 +1,5 @@
 using Test
-using JuliaStarter
+using WebViewApp
 using Aural
 
 @testset "internal modules" begin
