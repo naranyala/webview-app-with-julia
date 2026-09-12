@@ -1,29 +1,59 @@
+// Design tokens — the entire interface reads these, so a palette or theme
+// change lands everywhere at once (shell, all 10 plugins, previews).
+//
+// Values are CSS `var()` references resolved by `stylex.css`, which defines
+// every `--wb-*` variable twice: `:root` (dark) and
+// `:root[data-theme='light']` (light), plus a `prefers-color-scheme`
+// fallback. `App.jsx` switches themes by setting `data-theme` on
+// `<html>` and persisting the choice in localStorage.
+//
+// Names are stable API: components must keep using these keys instead of
+// hardcoding colors.
 export const c = {
-  bg: '#0e0f12',
-  surface: '#16181c',
-  surfaceAlt: '#1e2025',
-  surfaceHover: '#26282e',
-  text: '#e8e9ed',
-  textSecondary: '#8b8d96',
-  muted: '#5e6069',
-  border: 'rgba(255, 255, 255, 0.07)',
-  borderStrong: 'rgba(255, 255, 255, 0.12)',
-  cyan: '#22d3ee',
-  cyanMuted: 'rgba(34, 211, 238, 0.14)',
-  amber: '#fbbf24',
-  amberMuted: 'rgba(251, 191, 36, 0.14)',
-  emerald: '#34d399',
-  emeraldMuted: 'rgba(52, 211, 153, 0.14)',
-  red: '#f87171',
-  redMuted: 'rgba(248, 113, 113, 0.14)',
-  blue: '#60a5fa',
-  blueMuted: 'rgba(96, 165, 250, 0.14)',
-  purple: '#a78bfa',
-  purpleMuted: 'rgba(167, 139, 250, 0.14)',
-  coral: '#fb923c',
-  coralMuted: 'rgba(251, 146, 60, 0.14)',
-  green: '#34d399',
-  greenMark: 'rgba(52, 211, 153, 0.14)',
-  gold: '#fbbf24',
-  goldMark: 'rgba(251, 191, 36, 0.14)'
+  bg: 'var(--wb-bg)',
+  surface: 'var(--wb-surface)',
+  surfaceAlt: 'var(--wb-surface-alt)',
+  surfaceHover: 'var(--wb-surface-hover)',
+  text: 'var(--wb-text)',
+  textSecondary: 'var(--wb-text-secondary)',
+  muted: 'var(--wb-muted)',
+  border: 'var(--wb-border)',
+  borderStrong: 'var(--wb-border-strong)',
+  cyan: 'var(--wb-cyan)',
+  cyanMuted: 'var(--wb-cyan-muted)',
+  amber: 'var(--wb-amber)',
+  amberMuted: 'var(--wb-amber-muted)',
+  emerald: 'var(--wb-emerald)',
+  emeraldMuted: 'var(--wb-emerald-muted)',
+  red: 'var(--wb-red)',
+  redMuted: 'var(--wb-red-muted)',
+  blue: 'var(--wb-blue)',
+  blueMuted: 'var(--wb-blue-muted)',
+  purple: 'var(--wb-purple)',
+  purpleMuted: 'var(--wb-purple-muted)',
+  coral: 'var(--wb-coral)',
+  coralMuted: 'var(--wb-coral-muted)',
+  green: 'var(--wb-green)',
+  greenMark: 'var(--wb-green-mark)',
+  gold: 'var(--wb-gold)',
+  goldMark: 'var(--wb-gold-mark)',
+  // Workspace shell tokens.
+  sidebar: 'var(--wb-sidebar)',
+  sidebarHover: 'var(--wb-sidebar-hover)',
+  accent: 'var(--wb-accent)',
+  accentMuted: 'var(--wb-accent-muted)',
+  teal: 'var(--wb-teal)',
+  tealMuted: 'var(--wb-teal-muted)',
+  orange: 'var(--wb-orange)',
+  orangeMuted: 'var(--wb-orange-muted)',
+  cyanMark: 'var(--wb-cyan-mark)',
+  // Interaction helpers (theme-aware so hover/translucency work in both modes).
+  accentStrong: 'var(--wb-cyan-strong)',
+  amberStrong: 'var(--wb-amber-strong)',
+  onAccent: 'var(--wb-ink-on-accent)',
+  onDark: 'white',
+  translucent: 'var(--wb-overlay)',
+  overlay: 'var(--wb-scrim)',
+  radius: 12,
+  fontMono: 'var(--wb-font-mono)'
 };

@@ -11,9 +11,9 @@ export const mediaStyles = stylex.create({
     height: 46,
     placeItems: 'center',
     borderRadius: 10,
-    backgroundImage: 'linear-gradient(145deg, #22d3ee, #164e63)',
-    backgroundColor: '#164e63',
-    color: c.bg,
+    backgroundImage: c.mediaBackground,
+    backgroundColor: c.cyan,
+    color: c.inkOnAccent,
     fontSize: '0.65rem',
     fontWeight: 800
   },
@@ -23,13 +23,14 @@ export const mediaStyles = stylex.create({
     minHeight: 40,
     marginLeft: 'auto',
     padding: '0.5rem 0.8rem',
+    border: 0,
     borderRadius: 9,
     backgroundColor: c.surfaceAlt,
     color: c.textSecondary,
     fontSize: '0.75rem'
   },
   toggleEnabled: {
-    border: `1px solid ${c.emeraldMuted}`,
+    backgroundColor: c.emeraldMuted,
     color: c.green
   },
   visualizer: {
@@ -124,15 +125,15 @@ export const mediaStyles = stylex.create({
   preset: {
     minHeight: 46,
     padding: '0.65rem',
-    border: '1px solid transparent',
+    border: 0,
     borderRadius: 8,
     backgroundColor: c.surfaceAlt,
     color: c.textSecondary,
     fontSize: '0.82rem',
     fontWeight: 600,
-    ':hover': { borderColor: c.cyan, color: c.text }
+    ':hover': { backgroundColor: c.cyanMuted, color: c.text }
   },
-  presetActive: { borderColor: c.cyan, color: c.text },
+  presetActive: { backgroundColor: c.cyanMuted, color: c.text },
   backendStatus: {
     display: 'flex',
     flexWrap: 'wrap',
@@ -168,6 +169,7 @@ export const mediaStyles = stylex.create({
     flex: 1,
     minHeight: 40,
     padding: '0.5rem',
+    border: 0,
     borderRadius: 8,
     backgroundColor: c.surfaceAlt,
     color: c.text,

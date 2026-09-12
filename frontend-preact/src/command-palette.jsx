@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { sx } from './stylex-styles.js';
+import { styles, sx } from './stylex-styles.js';
 
 // Minimal Ctrl+K palette (vlang T07 parity, adapted to this shell's plugin
 // registry). Filters `frontendPlugins` by title/description; Enter opens the
@@ -24,7 +24,9 @@ export function CommandPalette({ plugins, glyphFor, onSelect, onClose }) {
     if (event.key === 'Escape') onClose();
     else if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setCursor((value) => Math.min(value + 1, matches.length - 1));
+      setCursor((value) =>
+        Math.min(value + 1, Math.max(matches.length - 1, 0))
+      );
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       setCursor((value) => Math.max(value - 1, 0));
@@ -34,34 +36,65 @@ export function CommandPalette({ plugins, glyphFor, onSelect, onClose }) {
   }
 
   return (
-    <div className={sx('tool-panel')} role="dialog" aria-label="Jump to tool">
-      <input
-        ref={inputRef}
-        className={sx('search-field')}
-        value={query}
-        onInput={(event) => setQuery(event.currentTarget.value)}
-        onKeyDown={onKey}
-        placeholder="Jump to tool… (Esc to close)"
+    <div className={sx('palette-overlay')}>
+      <div
+        className={sx('palette')}
+        role="dialog"
         aria-label="Jump to tool"
-      />
-      <ul className={sx('todo-list')}>
-        {matches.map((plugin, index) => (
-          <li key={plugin.id}>
-            <button
-              type="button"
-              className={sx('text-button')}
-              onClick={() => onSelect(plugin.id)}
-              aria-current={plugin.id === active?.id ? 'true' : undefined}
-            >
-              {glyphFor(plugin.id)} {plugin.title}
-              {index === cursor ? ' ←' : ''}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {matches.length === 0 && (
-        <p className={sx('empty-notes')}>No tool matches.</p>
-      )}
+        aria-modal="true"
+      >
+        <div className={sx('palette-header')}>
+          <div>
+            <span className={sx('panel-label')}>Quick switcher</span>
+            <strong className={sx('palette-title')}>Jump to a workspace</strong>
+          </div>
+          <kbd className={sx('palette-hint')}>Esc</kbd>
+        </div>
+        <input
+          ref={inputRef}
+          className={sx('search-field')}
+          value={query}
+          onInput={(event) => setQuery(event.currentTarget.value)}
+          onKeyDown={onKey}
+          placeholder="Search tools, descriptions…"
+          aria-label="Jump to tool"
+        />
+        <ul className={sx('palette-results')}>
+          {matches.map((plugin, index) => (
+            <li key={plugin.id}>
+              <button
+                type="button"
+                className={sx(
+                  'palette-item',
+                  index === cursor && styles.paletteItemActive
+                )}
+                onClick={() => onSelect(plugin.id)}
+                aria-current={plugin.id === active?.id ? 'true' : undefined}
+              >
+                <span className={sx('palette-glyph')} aria-hidden="true">
+                  {glyphFor(plugin.id)}
+                </span>
+                <span className={sx('palette-copy')}>
+                  <strong>{plugin.title}</strong>
+                  <small className={sx('palette-copy-small')}>
+                    {plugin.description}
+                  </small>
+                </span>
+                <kbd className={sx('palette-key')}>
+                  {String(index + 1).padStart(2, '0')}
+                </kbd>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {matches.length === 0 && (
+          <p className={sx('palette-empty')}>No tool matches.</p>
+        )}
+        <div className={sx('palette-footer')}>
+          <span>↑↓ to move</span>
+          <span>Enter to open</span>
+        </div>
+      </div>
     </div>
   );
 }

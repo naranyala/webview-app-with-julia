@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'preact/hooks';
+import { styles, sx } from '../stylex-styles.js';
 
 const STORAGE_KEY = 'tab-vault.collections';
 
@@ -427,7 +428,7 @@ export function TabVault() {
             onDrop={handleDrop}
             style={{
               border: dragOver
-                ? '2px dashed var(--accent, #fbbf24)'
+                ? '2px dashed var(--wb-accent)'
                 : '2px dashed transparent',
               borderRadius: 12,
               padding: dragOver ? '1rem' : 0,
@@ -547,8 +548,7 @@ export function TabVault() {
             </button>
             <button
               type="button"
-              className={sx('text-button')}
-              style={{ color: '#f87171' }}
+              className={sx('text-button', styles.red)}
               onClick={() => {
                 if (confirm(`Delete "${selected.name}"?`))
                   deleteVault(selected.id);

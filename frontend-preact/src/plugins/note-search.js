@@ -17,12 +17,27 @@ export function createNoteSearcher(notes) {
     keys: ['title', 'tag', 'body']
   });
   return {
-    search: (query) =>
-      query.trim()
-        ? fuzzysort
-            .go(query.trim(), index, { threshold: 0.3, limit: 100 })
-            .map((result) => result.obj)
-        : source
+    search: (query) => {
+      const trimmed = query.trim();
+      if (!trimmed) return source;
+      // Fuzzy rank first; union with exact substring so long essay bodies
+      // (1500+ chars) remain retrievable even when fuzzysort scoring drops
+      // a mid-body term like "rental".
+      const fuzzy = fuzzysort
+        .go(trimmed, index, { threshold: 0.3, limit: 100 })
+        .map((result) => result.obj);
+      const seen = new Set(fuzzy.map((note) => note.id));
+      const lowered = trimmed.toLowerCase();
+      for (const note of source) {
+        if (seen.has(note.id)) continue;
+        const haystack = `${note.title} ${note.tag} ${note.body}`.toLowerCase();
+        if (haystack.includes(lowered)) {
+          fuzzy.push(note);
+          seen.add(note.id);
+        }
+      }
+      return fuzzy;
+    }
   };
 }
 

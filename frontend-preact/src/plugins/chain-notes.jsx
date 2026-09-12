@@ -22,6 +22,10 @@ import {
 import { createNoteSearcher, NOTE_SEARCH_ENGINE } from './note-search.js';
 import { parseExternalChat, parseStoredQna, serializeQna } from './qna.js';
 
+// Essay workspace: the sidebar lists the essay chain (seed ideas persist in
+// `notes.json`), the editor grows a seed idea into a long-form essay with a
+// Write/Preview loop. Storage encoding, search, and PDF export are unchanged.
+
 function chainLabel(id, notes) {
   const index = notes.findIndex((note) => note.id === id);
   return index < 0 ? '01' : String(index + 1).padStart(2, '0');
@@ -41,6 +45,7 @@ export function ChainNotes() {
   const [noteTitle, setNoteTitle] = useState('');
   const [noteQuestion, setNoteQuestion] = useState('');
   const [noteAnswer, setNoteAnswer] = useState('');
+  const [editorMode, setEditorMode] = useState('write');
   const [importText, setImportText] = useState('');
   const [pdfExporter, setPdfExporter] = useState(DEFAULT_NOTE_PDF_EXPORTER);
   const [loadError, setLoadError] = useState('');
@@ -66,6 +71,7 @@ export function ChainNotes() {
       saveSubscription.current?.();
       saveSubscription.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const noteSearcher = useMemo(() => createNoteSearcher(notes), [notes]);
@@ -76,6 +82,22 @@ export function ChainNotes() {
   const noteWordCount = `${noteQuestion} ${noteAnswer}`.trim()
     ? `${noteQuestion} ${noteAnswer}`.trim().split(/\s+/).length
     : 0;
+  const chainIndex = filteredNotes.findIndex(
+    (note) => note.id === activeNoteId
+  );
+  const prevNote = chainIndex > 0 ? filteredNotes[chainIndex - 1] : null;
+  const nextNote =
+    chainIndex >= 0 && chainIndex < filteredNotes.length - 1
+      ? filteredNotes[chainIndex + 1]
+      : null;
+  const previewHtml = useMemo(
+    () => blocksToHtml(parseMarkdown(noteAnswer || '')),
+    [noteAnswer]
+  );
+  const ideaHtml = useMemo(
+    () => blocksToHtml(parseMarkdown(noteQuestion || '')),
+    [noteQuestion]
+  );
 
   async function selectNote(note) {
     if (activeNoteId && activeNoteId !== note.id) {
@@ -148,11 +170,12 @@ export function ChainNotes() {
     try {
       await noteSaveCoordinator.flushAll();
       const note = await backend.createNote(
-        'New AI chat',
-        'AI Chat',
+        'New essay seed',
+        'Draft',
         serializeQna('', '')
       );
       setNotes((current) => [...current, note]);
+      setEditorMode('write');
       selectNote(note);
     } catch (error) {
       setLoadError(backendError(error));
@@ -245,8 +268,8 @@ export function ChainNotes() {
     if (typeof document === 'undefined' || typeof window === 'undefined')
       return;
     const renderEntry = (entry) =>
-      `<h3>Question</h3>${blocksToHtml(parseMarkdown(entry.question || '—'))}` +
-      `<h3>Answer</h3>${blocksToHtml(parseMarkdown(entry.answer || '—'))}`;
+      `<h3>Seed idea</h3>${blocksToHtml(parseMarkdown(entry.question || '—'))}` +
+      `<h3>Essay</h3>${blocksToHtml(parseMarkdown(entry.answer || '—'))}`;
     const sections = filteredNotes
       .map(noteEntry)
       .map(
@@ -259,7 +282,7 @@ export function ChainNotes() {
     const root = document.createElement('div');
     root.id = 'chain-print-root';
     root.innerHTML =
-      `<h1>Chain Notes</h1><p>${filteredNotes.length} exchange${filteredNotes.length === 1 ? '' : 's'} / ` +
+      `<h1>Chain Notes</h1><p>${filteredNotes.length} essay${filteredNotes.length === 1 ? '' : 's'} / ` +
       `${escapeHtml(new Date().toLocaleDateString())}</p><hr>${sections}`;
     const cleanup = () => {
       style.remove();
@@ -273,27 +296,13 @@ export function ChainNotes() {
   }
 
   return (
-    <section className={sx('tool-page')}>
-      <div className={sx('tool-heading')}>
-        <div>
-          <p className={sx('eyebrow')}>Local knowledge base</p>
-          <h1 className={sx('page-title')}>Chain Notes</h1>
-          <p className={sx('lede')}>
-            Save external AI conversations as searchable question-and-answer
-            cards.
-          </p>
-        </div>
-        <span className={sx('mock-badge')}>
-          {backend.isNative() ? 'Stored' : 'Browser mock'}
-        </span>
-      </div>
-
-      <div className={sx('notes-layout')}>
-        <aside className={sx('tool-panel', 'notes-list-panel')}>
+    <section className={sx('tool-page', 'essay-page')}>
+      <div className={sx('essay-layout')}>
+        <aside className={sx('tool-panel', 'essay-list-pane')}>
           <div className={sx('notes-list-heading')}>
             <div>
-              <span className={sx('panel-label')}>Saved exchanges</span>
-              <h2 className={sx('panel-title')}>{notes.length} chats</h2>
+              <span className={sx('panel-label')}>Essay chain</span>
+              <h2 className={sx('panel-title')}>{notes.length} essays</h2>
             </div>
             <button
               type="button"
@@ -304,11 +313,11 @@ export function ChainNotes() {
             </button>
           </div>
           <label>
-            <span className={sx('sr-only')}>Search chats</span>
+            <span className={sx('sr-only')}>Search essays</span>
             <input
               className={sx('search-field')}
               type="search"
-              placeholder="Search chats..."
+              placeholder="Search essays..."
               value={noteQuery}
               onInput={(event) => setNoteQuery(event.currentTarget.value)}
             />
@@ -316,22 +325,19 @@ export function ChainNotes() {
           <p className={sx('search-engine-note')}>
             {NOTE_SEARCH_ENGINE.detail} / {filteredNotes.length} matches
           </p>
-          <div className={sx('notes-list')}>
+          <div className={sx('essay-list-scroll')}>
             {filteredNotes.map((note) => (
               <button
                 type="button"
                 key={note.id}
                 className={sx(
-                  'note-list-item',
-                  activeNoteId === note.id && styles.noteItemActive
+                  'essay-item',
+                  activeNoteId === note.id && styles.essayItemActive
                 )}
                 onClick={() => selectNote(note)}
               >
-                <span className={sx('note-list-meta')}>
-                  <span>{note.tag}</span>
-                  <span className={sx('note-list-updated')}>
-                    {note.updated}
-                  </span>
+                <span className={sx('essay-chain-no')}>
+                  {chainLabel(note.id, notes)} · {note.tag}
                 </span>
                 <strong className={sx('note-title')}>{note.title}</strong>
                 <span className={sx('note-body')}>{notePreview(note)}</span>
@@ -343,7 +349,14 @@ export function ChainNotes() {
           </div>
         </aside>
 
-        <article className={sx('tool-panel', 'note-editor')}>
+        <article className={sx('tool-panel', 'essay-editor-pane')}>
+          <div>
+            <p className={sx('eyebrow')}>Essay workspace</p>
+            <h1 className={sx('page-title')}>Chain Notes</h1>
+            <p className={sx('lede')}>
+              Grow a seed idea into a long-form essay, then publish the chain.
+            </p>
+          </div>
           <div className={sx('note-editor-heading')}>
             <div>
               <span className={sx('panel-label')}>
@@ -353,6 +366,32 @@ export function ChainNotes() {
                 {saveState || 'Stored in app data'}
               </span>
             </div>
+            <fieldset className={sx('seg-group')}>
+              <legend className={sx('sr-only')}>Editor mode</legend>
+              <button
+                type="button"
+                className={sx(
+                  'seg-button',
+                  editorMode === 'write' && styles.segButtonActive
+                )}
+                onClick={() => setEditorMode('write')}
+                aria-pressed={editorMode === 'write'}
+              >
+                Write
+              </button>
+              <button
+                type="button"
+                className={sx(
+                  'seg-button',
+                  editorMode === 'preview' && styles.segButtonActive
+                )}
+                onClick={() => setEditorMode('preview')}
+                aria-pressed={editorMode === 'preview'}
+                disabled={!activeNoteId}
+              >
+                Preview
+              </button>
+            </fieldset>
             <button
               type="button"
               className={sx('export-button')}
@@ -371,52 +410,104 @@ export function ChainNotes() {
             </button>
           </div>
           {loadError && <p className={sx('empty-notes')}>{loadError}</p>}
-          <input
-            className={sx('note-title-input')}
-            aria-label="Chat title"
-            placeholder="Chat title"
-            value={noteTitle}
-            disabled={!activeNoteId}
-            onInput={(event) => {
-              const next = event.currentTarget.value;
-              setNoteTitle(next);
-              updateNote(next, noteQuestion, noteAnswer);
-            }}
-          />
-          <div className={sx('note-meta-row')}>
-            <span>{noteWordCount} words</span>
-            <span>Question + answer</span>
-          </div>
-          <label className={sx('qna-field')}>
-            <span className={sx('qna-label')}>Question</span>
-            <textarea
-              className={sx('qna-input', 'qna-question-input')}
-              aria-label="Question"
-              placeholder="Paste the question you asked..."
-              value={noteQuestion}
-              disabled={!activeNoteId}
-              onInput={(event) => {
-                const next = event.currentTarget.value;
-                setNoteQuestion(next);
-                updateNote(noteTitle, next, noteAnswer);
-              }}
-            />
-          </label>
-          <label className={sx('qna-field')}>
-            <span className={sx('qna-label')}>Answer</span>
-            <textarea
-              className={sx('qna-input', 'qna-answer-input')}
-              aria-label="Answer"
-              placeholder="Paste the generated answer..."
-              value={noteAnswer}
-              disabled={!activeNoteId}
-              onInput={(event) => {
-                const next = event.currentTarget.value;
-                setNoteAnswer(next);
-                updateNote(noteTitle, noteQuestion, next);
-              }}
-            />
-          </label>
+          {!activeNoteId ? (
+            <p className={sx('empty-notes')}>
+              Select an essay from the chain, or start a new seed.
+            </p>
+          ) : editorMode === 'preview' ? (
+            <div>
+              <h2 className={sx('panel-title')}>{noteTitle || 'Untitled'}</h2>
+              <div className="essay-idea">
+                <span className="essay-idea-kicker">Seed idea</span>
+                <div
+                  className="essay-preview"
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{
+                    __html: ideaHtml || '<p>—</p>'
+                  }}
+                />
+              </div>
+              <div
+                className={`${sx('preview-article')} essay-preview`}
+                // eslint-disable-next-line react/no-danger
+                dangerouslySetInnerHTML={{
+                  __html: previewHtml || '<p>—</p>'
+                }}
+              />
+            </div>
+          ) : (
+            <div>
+              <input
+                className={sx('note-title-input')}
+                aria-label="Essay title"
+                placeholder="Essay title"
+                value={noteTitle}
+                disabled={!activeNoteId}
+                onInput={(event) => {
+                  const next = event.currentTarget.value;
+                  setNoteTitle(next);
+                  updateNote(next, noteQuestion, noteAnswer);
+                }}
+              />
+              <div className={sx('note-meta-row')}>
+                <span>{noteWordCount} words</span>
+                <span className={sx('chain-nav')}>
+                  <button
+                    type="button"
+                    className={sx('text-button')}
+                    onClick={() => prevNote && selectNote(prevNote)}
+                    disabled={!prevNote}
+                    aria-label="Previous essay"
+                  >
+                    ← Prev
+                  </button>
+                  <span>
+                    {chainIndex >= 0 ? chainIndex + 1 : '—'} /{' '}
+                    {filteredNotes.length}
+                  </span>
+                  <button
+                    type="button"
+                    className={sx('text-button')}
+                    onClick={() => nextNote && selectNote(nextNote)}
+                    disabled={!nextNote}
+                    aria-label="Next essay"
+                  >
+                    Next →
+                  </button>
+                </span>
+              </div>
+              <label className={sx('qna-field')}>
+                <span className={sx('qna-label')}>Seed idea</span>
+                <textarea
+                  className={sx('qna-input', 'idea-input')}
+                  aria-label="Seed idea"
+                  placeholder="One-sentence core idea + brainstorm angles..."
+                  value={noteQuestion}
+                  disabled={!activeNoteId}
+                  onInput={(event) => {
+                    const next = event.currentTarget.value;
+                    setNoteQuestion(next);
+                    updateNote(noteTitle, next, noteAnswer);
+                  }}
+                />
+              </label>
+              <label className={sx('qna-field')}>
+                <span className={sx('qna-label')}>Essay</span>
+                <textarea
+                  className={sx('qna-input', 'essay-input')}
+                  aria-label="Essay"
+                  placeholder="Elaborate the idea into a long-form essay (markdown supported)..."
+                  value={noteAnswer}
+                  disabled={!activeNoteId}
+                  onInput={(event) => {
+                    const next = event.currentTarget.value;
+                    setNoteAnswer(next);
+                    updateNote(noteTitle, noteQuestion, next);
+                  }}
+                />
+              </label>
+            </div>
+          )}
           <details className={sx('qna-import')}>
             <summary>Import external chat</summary>
             <p className={sx('qna-help')}>
@@ -425,7 +516,7 @@ export function ChainNotes() {
             <textarea
               className={sx('qna-import-input')}
               aria-label="External chat to import"
-              placeholder={'Question: ...\n\nAnswer: ...'}
+              placeholder={'Seed idea: ...\n\nEssay: ...'}
               value={importText}
               disabled={!activeNoteId}
               onInput={(event) => setImportText(event.currentTarget.value)}
@@ -436,7 +527,7 @@ export function ChainNotes() {
               onClick={importChat}
               disabled={!activeNoteId || !importText.trim()}
             >
-              Extract Q&A
+              Extract idea &amp; essay
             </button>
           </details>
           <div className={sx('note-editor-footer')}>
@@ -475,7 +566,7 @@ export function ChainNotes() {
               onClick={() => runExport('note')}
               disabled={!activeNoteId}
             >
-              Note -&gt;
+              Essay -&gt;
             </button>
             <button
               type="button"

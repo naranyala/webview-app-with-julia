@@ -5,8 +5,7 @@ export const quizStyles = stylex.create({
   quizShell: {
     minHeight: 'calc(100dvh - 52px)',
     padding: '1.25rem 1rem 3rem',
-    backgroundImage:
-      'radial-gradient(circle at 78% 0%, rgba(167, 139, 250, 0.09), transparent 28rem)',
+    backgroundImage: c.quizBackground,
     backgroundColor: c.bg
   },
   quizHeader: {
@@ -162,7 +161,7 @@ export const quizStyles = stylex.create({
   quizProgressFill: {
     display: 'block',
     height: '100%',
-    backgroundImage: 'linear-gradient(90deg, #8b5cf6, #c4b5fd)'
+    backgroundImage: `linear-gradient(90deg, ${c.purple}, ${c.cyan})`
   },
   quizGrid: {
     display: 'grid',
@@ -236,6 +235,7 @@ export const quizStyles = stylex.create({
   quizButton: {
     minHeight: 40,
     padding: '0.5rem 0.8rem',
+    border: 0,
     borderRadius: 8,
     fontSize: '0.75rem',
     fontWeight: 700
@@ -246,8 +246,8 @@ export const quizStyles = stylex.create({
   },
   quizPrimary: {
     backgroundColor: c.purple,
-    color: '#1e1b4b',
-    ':hover': { backgroundColor: '#8b5cf6' }
+    color: c.inkOnAccent,
+    ':hover': { backgroundColor: c.purpleStrong }
   },
   quizKnown: { backgroundColor: c.emeraldMuted, color: c.green },
   quizIndex: { alignSelf: 'start', padding: '1rem' },
@@ -281,6 +281,7 @@ export const quizStyles = stylex.create({
     width: '100%',
     minHeight: 42,
     padding: '0.45rem',
+    border: 0,
     borderRadius: 8,
     backgroundColor: 'transparent',
     color: c.textSecondary,

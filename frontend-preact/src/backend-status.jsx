@@ -4,7 +4,7 @@ import { sx } from './stylex-styles.js';
 
 // Small health probe used by the shell header. Calls are serialized locally so
 // repeated clicks cannot overlap a bridge request or race their status text.
-export function BackendStatus({ compact = false }) {
+export function BackendStatus({ compact = false, hideCounter = false }) {
   const [count, setCount] = useState(null);
   const [systemInfo, setSystemInfo] = useState(null);
   const [timestamp, setTimestamp] = useState('');
@@ -105,22 +105,28 @@ export function BackendStatus({ compact = false }) {
           (compact ? 'tap Refresh to connect' : 'not connected yet')}
       </span>
       <span className={sx('backend-status-actions')}>
-        <button
-          className={sx('backendButton')}
-          type="button"
-          disabled={pending}
-          onClick={() => run(async () => setCount(await backend.increment(1)))}
-        >
-          +1
-        </button>
-        <button
-          className={sx('backendButton')}
-          type="button"
-          disabled={pending}
-          onClick={() => run(async () => setCount(await backend.reset()))}
-        >
-          Reset
-        </button>
+        {!hideCounter && (
+          <button
+            className={sx('backendButton')}
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              run(async () => setCount(await backend.increment(1)))
+            }
+          >
+            +1
+          </button>
+        )}
+        {!hideCounter && (
+          <button
+            className={sx('backendButton')}
+            type="button"
+            disabled={pending}
+            onClick={() => run(async () => setCount(await backend.reset()))}
+          >
+            Reset
+          </button>
+        )}
         <button
           className={sx('backendButton')}
           type="button"

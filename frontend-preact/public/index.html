@@ -3,14 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="WebView toolkit: disk scanner, audio equalizer, chain notes, and todos" />
+    <meta
+      name="description"
+      content="WebView Workbench: local-first tools for notes, research, media, maps, and planning."
+    />
+    <meta name="theme-color" content="#111318" />
     <!-- Single-file build is served from embedded HTML (or localhost dev server).
       Keep remote content out: no external scripts, frames, or navigation. -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     />
-    <title>WebView App</title>
+    <title>WebView Workbench</title>
+    <script>
+      (() => {
+        try {
+          const storedTheme = localStorage.getItem('webview-workbench-theme');
+          const theme =
+            storedTheme === 'light' || storedTheme === 'dark'
+              ? storedTheme
+              : matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark';
+          document.documentElement.dataset.theme = theme;
+        } catch {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="/assets/app.css" />
   </head>
   <body>

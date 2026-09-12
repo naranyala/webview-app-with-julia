@@ -24,65 +24,278 @@ export const contentStyles = stylex.create({
     fontSize: '0.88rem',
     lineHeight: 1.55
   },
-  toolList: {
+  homePage: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.6rem',
-    '@media (min-width: 720px)': {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr'
+    gap: '1.35rem',
+    width: '100%',
+    maxWidth: '78rem',
+    margin: '0 auto'
+  },
+  homeHero: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) auto',
+    alignItems: 'center',
+    gap: '1.5rem',
+    padding: 'clamp(1.25rem, 4vw, 2.5rem)',
+    borderRadius: 22,
+    backgroundColor: c.surface,
+    backgroundImage: c.heroBackground,
+    boxShadow: c.shadowCard,
+    '@media (max-width: 560px)': { gridTemplateColumns: '1fr' }
+  },
+  homeHeroCopy: { maxWidth: '43rem' },
+  homeTitle: {
+    maxWidth: '32rem',
+    margin: '0.45rem 0 0',
+    color: c.text,
+    fontSize: 'clamp(2.25rem, 7vw, 4.6rem)',
+    fontWeight: 720,
+    letterSpacing: '-0.07em',
+    lineHeight: 0.98
+  },
+  homeMark: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: '0.35rem',
+    color: c.cyan,
+    fontFamily: c.fontMono,
+    textAlign: 'right',
+    '@media (max-width: 560px)': {
+      alignItems: 'flex-start',
+      flexDirection: 'row'
     }
+  },
+  homeMarkSpan: {
+    fontSize: 'clamp(2.8rem, 8vw, 5.5rem)',
+    fontWeight: 800,
+    letterSpacing: '-0.12em',
+    lineHeight: 0.8,
+    opacity: 0.9
+  },
+  homeMarkSmall: {
+    color: c.textSecondary,
+    fontSize: '0.6rem',
+    fontWeight: 700,
+    letterSpacing: '0.18em',
+    lineHeight: 1.25
+  },
+  homeToolbar: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: '1rem',
+    padding: '0 0.15rem',
+    '@media (max-width: 560px)': {
+      alignItems: 'flex-start',
+      flexDirection: 'column'
+    }
+  },
+  homeSectionTitle: {
+    margin: '0.25rem 0 0',
+    color: c.text,
+    fontSize: '1.2rem',
+    fontWeight: 700,
+    letterSpacing: '-0.03em'
+  },
+  homeCount: {
+    color: c.textSecondary,
+    fontFamily: c.fontMono,
+    fontSize: '0.68rem',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase'
+  },
+  toolList: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gap: '0.85rem',
+    '@media (min-width: 720px)': { gridTemplateColumns: '1fr 1fr' },
+    '@media (min-width: 1200px)': { gridTemplateColumns: 'repeat(3, 1fr)' }
   },
   toolRow: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '0.8rem',
-    minHeight: 68,
+    alignItems: 'flex-start',
+    flexDirection: 'column',
+    gap: '0.9rem',
+    minHeight: 184,
     width: '100%',
-    padding: '0.8rem 0.9rem',
-    border: `1px solid ${c.border}`,
-    borderRadius: 12,
+    padding: '1rem 1.05rem 1.05rem',
+    border: 0,
+    borderRadius: 16,
     backgroundColor: c.surface,
     textAlign: 'left',
-    ':hover': { borderColor: c.coral, backgroundColor: c.surfaceHover },
-    '@media (min-width: 720px)': {
-      flexDirection: 'column',
-      alignItems: 'flex-start',
-      minHeight: 170
+    boxShadow: c.shadowCard,
+    transition:
+      'transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease',
+    ':hover': {
+      backgroundColor: c.surfaceHover,
+      boxShadow: c.shadowCardHover,
+      transform: 'translateY(-2px)'
     }
+  },
+  rowTopline: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%'
   },
   rowGlyph: {
     display: 'grid',
     placeItems: 'center',
-    flex: '0 0 38px',
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    flex: '0 0 44px',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: c.surfaceAlt,
-    fontSize: '1rem'
+    fontSize: '1.1rem',
+    boxShadow: `inset 0 0 0 1px ${c.border}`
+  },
+  rowSymbol: {
+    color: c.muted,
+    fontFamily: c.fontMono,
+    fontSize: '0.6rem',
+    fontWeight: 700,
+    letterSpacing: '0.1em'
   },
   rowCopy: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.15rem',
+    gap: '0.3rem',
     minWidth: 0,
-    flex: 1
+    flex: 1,
+    width: '100%'
   },
-  rowCopyStrong: { fontSize: '0.95rem' },
+  rowCopyStrong: { color: c.text, fontSize: '0.98rem', fontWeight: 700 },
   rowCopySmall: {
     color: c.textSecondary,
     fontSize: '0.78rem',
-    lineHeight: 1.4,
+    lineHeight: 1.5,
     display: '-webkit-box',
     WebkitBoxOrient: 'vertical',
     WebkitLineClamp: 2,
     overflow: 'hidden'
   },
   rowChevron: {
+    alignSelf: 'flex-end',
     color: c.textSecondary,
-    fontSize: '1.4rem',
+    fontSize: '1.45rem',
     lineHeight: 1,
-    '@media (min-width: 720px)': { marginTop: 'auto' }
+    marginTop: 'auto'
+  },
+  homeFooter: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '1rem',
+    padding: '0 0.15rem',
+    color: c.muted,
+    fontSize: '0.72rem',
+    '@media (max-width: 720px)': { flexDirection: 'column', gap: '0.35rem' }
+  },
+  homeShortcut: { color: c.cyan, fontFamily: c.fontMono },
+  paletteOverlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 80,
+    display: 'grid',
+    placeItems: 'start center',
+    padding: 'min(14vh, 7rem) 1rem 1rem',
+    backgroundColor: c.scrim,
+    backdropFilter: 'blur(12px)'
+  },
+  palette: {
+    width: 'min(40rem, 100%)',
+    overflow: 'hidden',
+    border: `1px solid ${c.borderStrong}`,
+    borderRadius: 18,
+    backgroundColor: c.surface,
+    boxShadow: c.shadowModal
+  },
+  paletteHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '1rem',
+    padding: '1rem 1rem 0.85rem'
+  },
+  paletteTitle: {
+    display: 'block',
+    marginTop: '0.25rem',
+    color: c.text,
+    fontSize: '1rem'
+  },
+  paletteHint: {
+    padding: '0.25rem 0.45rem',
+    borderRadius: 6,
+    backgroundColor: c.surfaceAlt,
+    color: c.textSecondary,
+    fontFamily: c.fontMono,
+    fontSize: '0.65rem'
+  },
+  paletteResults: {
+    display: 'flex',
+    flexDirection: 'column',
+    maxHeight: 'min(55vh, 28rem)',
+    margin: 0,
+    padding: '0 0.55rem',
+    overflowY: 'auto',
+    listStyle: 'none'
+  },
+  paletteItem: {
+    display: 'grid',
+    gridTemplateColumns: '2.4rem minmax(0, 1fr) auto',
+    alignItems: 'center',
+    gap: '0.7rem',
+    width: '100%',
+    minHeight: 58,
+    padding: '0.55rem 0.6rem',
+    border: 0,
+    borderRadius: 10,
+    backgroundColor: 'transparent',
+    color: c.text,
+    textAlign: 'left',
+    ':hover': { backgroundColor: c.surfaceHover }
+  },
+  paletteItemActive: {
+    backgroundColor: c.accentMuted,
+    boxShadow: `inset 3px 0 0 ${c.accent}`
+  },
+  paletteGlyph: {
+    display: 'grid',
+    placeItems: 'center',
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    backgroundColor: c.surfaceAlt,
+    color: c.cyan,
+    fontSize: '1rem'
+  },
+  paletteCopy: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.15rem',
+    minWidth: 0
+  },
+  paletteCopySmall: { color: c.textSecondary, fontSize: '0.72rem' },
+  paletteKey: {
+    color: c.muted,
+    fontFamily: c.fontMono,
+    fontSize: '0.62rem'
+  },
+  paletteEmpty: {
+    margin: 0,
+    padding: '1.5rem 1rem',
+    color: c.textSecondary,
+    textAlign: 'center'
+  },
+  paletteFooter: {
+    display: 'flex',
+    gap: '1rem',
+    padding: '0.75rem 1rem',
+    borderTop: `1px solid ${c.border}`,
+    color: c.muted,
+    fontFamily: c.fontMono,
+    fontSize: '0.62rem'
   },
   launcherStatus: { marginTop: '0.25rem' },
   recent: {
@@ -99,7 +312,6 @@ export const contentStyles = stylex.create({
     flex: '0 0 auto',
     minHeight: 32,
     padding: '0.3rem 0.7rem',
-    border: `1px solid ${c.border}`,
     borderRadius: 100,
     backgroundColor: c.surface,
     fontSize: '0.75rem',
@@ -129,23 +341,23 @@ export const contentStyles = stylex.create({
   toolPage: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.8rem',
+    gap: '1rem',
     width: '100%',
-    maxWidth: '44rem',
-    '@media (min-width: 1024px)': { maxWidth: '62rem' }
+    maxWidth: '76rem'
   },
   toolHeading: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.75rem',
-    marginBottom: '0.25rem'
+    gap: '0.65rem',
+    marginBottom: '0.4rem'
   },
   pageTitle: {
-    margin: '0.3rem 0 0',
-    fontSize: 'clamp(1.9rem, 8vw, 2.6rem)',
-    fontWeight: 650,
-    letterSpacing: '-0.05em',
-    lineHeight: 1
+    margin: '0.35rem 0 0',
+    color: c.text,
+    fontSize: 'clamp(2rem, 5vw, 3.4rem)',
+    fontWeight: 720,
+    letterSpacing: '-0.065em',
+    lineHeight: 0.98
   },
   badge: {
     alignSelf: 'flex-start',
@@ -160,11 +372,12 @@ export const contentStyles = stylex.create({
     whiteSpace: 'nowrap'
   },
   panel: {
-    padding: '1rem',
+    padding: '1.1rem',
     border: `1px solid ${c.border}`,
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: c.surface,
-    '@media (min-width: 720px)': { padding: '1.35rem' }
+    boxShadow: c.shadowPanel,
+    '@media (min-width: 720px)': { padding: '1.4rem' }
   },
   panelHeading: {
     display: 'flex',
@@ -193,11 +406,12 @@ export const contentStyles = stylex.create({
     minHeight: 44,
     padding: '0.65rem',
     border: `1px solid ${c.borderStrong}`,
-    borderRadius: 8,
+    borderRadius: 10,
     outline: 0,
     backgroundColor: c.surfaceAlt,
     color: c.text,
-    fontSize: '0.9rem'
+    fontSize: '0.85rem',
+    ':focus': { borderColor: c.cyan, boxShadow: `0 0 0 3px ${c.cyanMuted}` }
   },
   muted: { color: c.textSecondary, fontSize: '0.72rem' },
   summaryRow: {
@@ -230,12 +444,13 @@ export const contentStyles = stylex.create({
     width: '100%',
     minHeight: 46,
     padding: '0.7rem 1rem',
+    border: 0,
     borderRadius: 9,
     backgroundColor: c.cyan,
     color: c.bg,
     fontSize: '0.85rem',
     fontWeight: 700,
-    ':hover': { backgroundColor: '#06b6d4' },
+    ':hover': { backgroundColor: c.cyanStrong },
     '@media (min-width: 720px)': { width: 'auto', minWidth: 200 }
   },
   note: {
@@ -303,12 +518,13 @@ export const contentStyles = stylex.create({
   action: {
     minHeight: 40,
     padding: '0.5rem 0.8rem',
+    border: 0,
     borderRadius: 8,
     backgroundColor: c.amber,
     color: c.bg,
     fontSize: '0.75rem',
     fontWeight: 800,
-    ':hover': { backgroundColor: '#f59e0b' }
+    ':hover': { backgroundColor: c.amberStrong }
   },
   searchInput: {
     width: '100%',
@@ -347,18 +563,16 @@ export const contentStyles = stylex.create({
     gap: '0.3rem',
     minHeight: 44,
     padding: '0.7rem',
-    border: '1px solid transparent',
+    border: 0,
     borderRadius: 9,
     backgroundColor: c.surfaceAlt,
     textAlign: 'left',
     ':hover': {
-      borderColor: c.cyanMuted,
       backgroundColor: c.surfaceHover
     },
     '@media (min-width: 720px)': { flex: 'none' }
   },
   noteItemActive: {
-    borderColor: c.cyanMuted,
     backgroundColor: c.cyanMuted
   },
   noteMeta: {
@@ -501,9 +715,115 @@ export const contentStyles = stylex.create({
   textButton: {
     minHeight: 44,
     padding: 0,
+    border: 0,
     backgroundColor: 'transparent',
     color: c.amber,
     fontSize: '0.8rem',
     fontWeight: 700
+  },
+  // ── Essay workspace (Chain Notes redesign) ──────────────────────────────
+  essayPage: {
+    width: '100%',
+    maxWidth: '76rem',
+    margin: '0 auto'
+  },
+  essayLayout: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    gap: '1rem',
+    alignItems: 'start',
+    '@media (min-width: 1024px)': {
+      gridTemplateColumns: '300px minmax(0, 1fr)'
+    }
+  },
+  essayListPane: {
+    display: 'flex',
+    flexDirection: 'column',
+    maxHeight: 'none',
+    '@media (min-width: 1024px)': {
+      position: 'sticky',
+      top: 76,
+      maxHeight: 'calc(100dvh - 100px)'
+    }
+  },
+  essayListScroll: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.45rem',
+    marginTop: '0.8rem',
+    overflowY: 'auto',
+    paddingBottom: '0.25rem',
+    '@media (max-width: 1023px)': { maxHeight: '16rem' }
+  },
+  essayItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: '0.3rem',
+    width: '100%',
+    padding: '0.7rem 0.8rem',
+    border: `1px solid transparent`,
+    borderRadius: 10,
+    backgroundColor: c.surfaceAlt,
+    textAlign: 'left',
+    ':hover': { backgroundColor: c.surfaceHover }
+  },
+  essayItemActive: {
+    borderColor: c.accentMuted,
+    backgroundColor: c.accentMuted
+  },
+  essayChainNo: {
+    color: c.accent,
+    fontFamily: c.fontMono,
+    fontSize: '0.62rem',
+    fontWeight: 800,
+    letterSpacing: '0.08em'
+  },
+  essayEditorPane: {
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 480
+  },
+  chainNav: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    color: c.textSecondary,
+    fontFamily: c.fontMono,
+    fontSize: '0.68rem'
+  },
+  segGroup: {
+    display: 'flex',
+    gap: 2,
+    minWidth: 0,
+    margin: 0,
+    padding: 2,
+    border: 0,
+    borderRadius: 9,
+    backgroundColor: c.surfaceAlt
+  },
+  segButton: {
+    minHeight: 34,
+    padding: '0.35rem 0.8rem',
+    border: 0,
+    borderRadius: 7,
+    backgroundColor: 'transparent',
+    color: c.textSecondary,
+    fontSize: '0.74rem',
+    fontWeight: 700,
+    ':hover': { color: c.text }
+  },
+  segButtonActive: { backgroundColor: c.surfaceHover, color: c.text },
+  essayInput: { minHeight: 340, lineHeight: 1.75 },
+  ideaInput: { minHeight: 110, borderLeft: `3px solid ${c.accent}` },
+  previewArticle: {
+    marginTop: '1rem',
+    padding: '1.25rem 1.35rem',
+    border: `1px solid ${c.border}`,
+    borderRadius: 10,
+    backgroundColor: c.surfaceAlt,
+    fontSize: '0.92rem',
+    lineHeight: 1.7,
+    overflowWrap: 'break-word'
   }
 });

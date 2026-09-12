@@ -5,6 +5,7 @@ export const taskStyles = stylex.create({
   todoToggleAll: {
     flexShrink: 0,
     padding: '0.25rem 0.5rem',
+    border: 0,
     borderRadius: 999,
     backgroundColor: 'transparent',
     color: c.textSecondary,
@@ -45,6 +46,7 @@ export const taskStyles = stylex.create({
     minHeight: 36,
     minWidth: 36,
     padding: '0.25rem',
+    border: 0,
     borderRadius: 8,
     backgroundColor: 'transparent',
     color: c.textSecondary,
@@ -55,15 +57,15 @@ export const taskStyles = stylex.create({
   dueText: {
     flexShrink: 0,
     padding: '0.15rem 0.55rem',
-    border: `1px solid ${c.amberMuted}`,
+    border: 0,
     borderRadius: 100,
-    backgroundColor: 'transparent',
+    backgroundColor: c.amberMuted,
     color: c.amber,
     fontFamily: 'monospace',
     fontSize: '0.62rem',
     whiteSpace: 'nowrap'
   },
-  dueOverdue: { borderColor: c.redMuted, color: c.red },
+  dueOverdue: { backgroundColor: c.redMuted, color: c.red },
   dueInput: {
     flexShrink: 0,
     width: '8.2rem',
@@ -99,7 +101,7 @@ export const taskStyles = stylex.create({
     gap: 3,
     minHeight: 40,
     padding: '0.2rem',
-    border: '1px solid transparent',
+    border: 0,
     borderRadius: 8,
     backgroundColor: 'transparent',
     color: c.text,
@@ -107,7 +109,6 @@ export const taskStyles = stylex.create({
     ':hover': { backgroundColor: c.surfaceHover }
   },
   calSelected: {
-    borderColor: c.amberMuted,
     backgroundColor: c.amberMuted
   },
   calToday: { color: c.amber, fontWeight: 800 },
@@ -144,5 +145,14 @@ export const taskStyles = stylex.create({
   green: { color: c.green },
   greenMark: { backgroundColor: c.greenMark, color: c.green },
   greenDot: { backgroundColor: c.green },
+  cyan: { color: c.cyan },
+  cyanMark: { backgroundColor: c.cyanMark, color: c.cyan },
+  cyanDot: { backgroundColor: c.cyan },
+  teal: { color: c.teal },
+  tealMark: { backgroundColor: c.tealMuted, color: c.teal },
+  tealDot: { backgroundColor: c.teal },
+  orange: { color: c.orange },
+  orangeMark: { backgroundColor: c.orangeMuted, color: c.orange },
+  orangeDot: { backgroundColor: c.orange },
   bandLast: { borderBottom: 0 }
 });
