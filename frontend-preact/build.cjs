@@ -1,6 +1,8 @@
 const esbuild = require('esbuild');
 const stylex = require('@stylexjs/unplugin');
-const { singleFileHtmlPlugin } = require('./plugins/single-file-html');
+const {
+  singleFileHtmlPlugin
+} = require('./build-plugins/single-file-html.cjs');
 
 const watch = process.argv.includes('--watch');
 const serve = process.argv.includes('--serve');

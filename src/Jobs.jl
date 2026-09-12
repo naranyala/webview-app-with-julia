@@ -202,7 +202,13 @@ function update_job!(
     message=nothing,
 )
     progress_value = progress === nothing ? nothing : _progress_value(progress)
-    message_value = message === nothing ? nothing : String(message)
+    message_value = if message === nothing
+        nothing
+    elseif message isa AbstractString
+        String(message)
+    else
+        throw(ArgumentError("message must be text"))
+    end
 
     return lock(manager.lock) do
         job = _lookup_locked(manager, id)

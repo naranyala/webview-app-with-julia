@@ -20,6 +20,14 @@ empty!(Backend.STATE.volumes)
         @test status == 1
         result = JSON3.read(payload)
         @test result["code"] == "UnknownBinding"
+
+        status, payload = Backend.handle_request("increment", "{")
+        @test status == 1
+        @test JSON3.read(payload)["code"] == "InternalError"
+
+        status, payload = Backend.handle_request("increment", "")
+        @test status == 1
+        @test JSON3.read(payload)["code"] == "InvalidArgument"
     end
 
     @testset "increment and reset" begin
@@ -246,6 +254,35 @@ empty!(Backend.STATE.volumes)
         end
     end
 
+    @testset "asynchronous audio analysis" begin
+        mktempdir(homedir()) do directory
+            path = joinpath(directory, "async.wav")
+            tone = Aural.tone(440, 0.05; samplerate=8000, amplitude=0.5)
+            Aural.write_audio(path, tone)
+
+            status, result = Backend.handle_request("startAudioAnalysis", JSON3.write([path]))
+            @test status == 0
+            job = JSON3.read(result)
+            job_id = String(job["id"])
+            current = job
+            for _ in 1:100
+                current_status, current_result = Backend.handle_request(
+                    "getAudioAnalysisStatus",
+                    JSON3.write([job_id]),
+                )
+                @test current_status == 0
+                current = JSON3.read(current_result)
+                current["state"] in ("completed", "failed", "cancelled") && break
+                sleep(0.02)
+            end
+
+            @test current["state"] == "completed"
+            @test current["sampleCount"] == 400
+            @test current["analysisSchema"] == 1
+            delete!(Backend.STATE.audio_jobs, job_id)
+        end
+    end
+
     @testset "document handlers" begin
         source = "@article{smith2026, title={A title}, author={Smith}}"
         status, result = Backend.handle_request("parseBibTeX", JSON3.write([source]))
@@ -356,6 +393,19 @@ empty!(Backend.STATE.volumes)
             @test status == 0
             @test isfile(output)
             @test JSON3.read(result)["size"] > 0
+
+            input = joinpath(output_directory, "convert.md")
+            write(input, "# Converted\n\nBody")
+            converted = joinpath(output_directory, "converted.html")
+            status, result = Backend.handle_request(
+                "convertMedia",
+                JSON3.write([input, converted]),
+            )
+            @test status == 0
+            conversion = JSON3.read(result)
+            @test conversion["output"] == converted
+            @test conversion["bytesWritten"] > 0
+            @test occursin("Converted", read(converted, String))
 
             input = joinpath(homedir(), ".config", "julia-starter", "media-plan.md")
             write(input, "# Plan")

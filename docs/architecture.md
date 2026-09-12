@@ -18,7 +18,7 @@ bin/webview_app.jl
         |
         +--> native/bridge.cc ------> libjulia_webview_bridge.so
         |
-        +--> src/Backend.jl --------> Aural.jl / app services
+        +--> src/Backend.jl + src/backend/ --> Aural.jl / app services
 ```
 
 The launcher creates a WebView window, sets its title and size, injects the
@@ -32,25 +32,27 @@ ID.
 | Layer | Location | Responsibility |
 | --- | --- | --- |
 | Julia package | `src/WebViewApp.jl` | Package exports, frontend loading, and CLI greeting. |
-| Julia backend | `src/Backend.jl` | JSON RPC routing, persistence, asset jobs, and app-owned DTOs. |
+| Julia backend | `src/Backend.jl` + `src/backend/` | Facade for JSON RPC routing; handler groups cover notes, quizzes, PDF, analysis, media, and routing separately. |
 | Audio adapter | `src/AudioAnalysisAdapter.jl` | Validates bridge input and translates bounded audio work through Aural.jl. |
 | Julia WebView wrapper | `src/ManualWebview.jl` | Direct `ccall` declarations for window, HTML, event loop, binding, and return APIs. |
-| Desktop entry point | `bin/webview_app.jl` | Creates the window, registers the current native bindings, services the request queue, and shuts down cleanly. |
+| Desktop entry point | `bin/webview_app.jl` | Creates the window, registers native bindings, services the request queue, and shuts down cleanly. |
 | C++ bridge | `native/bridge.cc` | Adapts WebView binding callbacks to a Julia-pollable request queue. |
 | Native build | `native/build_webview.sh` | Fetches pinned WebView v0.12.0 and compiles the two shared libraries. |
 | Frontend shell | `frontend-preact/src/App.jsx` | Home launcher, navigation rail, tool panels, command palette, autosave flush, and window controls. |
-| Plugin registry | `frontend-preact/src/plugins/index.js` | Declares the tools that are actually reachable from the shell. |
-| Frontend adapter | `frontend-preact/src/backend.js` | Validates arguments, calls `window.*`, normalizes errors, adds timeouts, and supplies mocks. |
-| Frontend build | `frontend-preact/build.js` | Bundles Preact, extracts StyleX, emits assets, and creates the single-file HTML. |
+| Plugin registry | `frontend-preact/src/plugins/index.js` | Declares the tools reachable from the shell. |
+| Frontend adapter | `frontend-preact/src/backend.js` + `backend-mock.js` | Validates arguments, calls `window.*`, normalizes errors, adds timeouts, and keeps browser mocks separate. |
+| StyleX catalog | `frontend-preact/src/stylex-*.js` | Groups shared tokens and styles by foundation, content, media, quiz, and tasks behind the `stylex-styles.js` facade. |
+| Note PDF export | `frontend-preact/src/plugins/note-pdf.js` + `note-pdf-jspdf.js` | Builds shared note blocks and delegates jsPDF rendering to its own renderer. |
+| Frontend build | `frontend-preact/build.cjs` | Bundles Preact, extracts StyleX, emits assets, and creates the single-file HTML. |
 
 ## Frontend build artifacts
 
 `frontend-preact/public/index.html` is the HTML template. The build writes
 bundled CSS and JavaScript to `frontend-preact/public/assets/`, then the
-`single-file-html` esbuild plugin inlines local CSS and JavaScript into
-`frontend-preact/dist/index.html`.
+`frontend-preact/build-plugins/single-file-html.cjs` esbuild plugin inlines local
+CSS and JavaScript into `frontend-preact/dist/index.html`.
 
-The following outputs are intentionally ignored:
+The following outputs are ignored by Git:
 
 - `frontend-preact/node_modules/`
 - `frontend-preact/dist/`
@@ -73,15 +75,14 @@ and the Tools submenu. Selecting a tool:
 3. updates the document title and scroll position; and
 4. renders the plugin component with any mode-specific props.
 
-The active shell passes `mode`, `selectedProvince`, and related callbacks to the
+The shell passes `mode`, `selectedProvince`, and related callbacks to the
 Indonesia Map and MIR Papers plugins. `Ctrl-K`/`Cmd-K` opens the command palette.
 
 ## Native versus mock mode
 
-The frontend labels itself native only when every name in `CORE_BINDINGS` is a
+The frontend reports native mode only when every name in `CORE_BINDINGS` is a
 function on `window`. The Julia launcher registers that list through the queue
-bridge. Missing bindings normally fall back to mocks; setting
+bridge. Missing bindings fall back to mocks; setting
 `window.__PREACT_MOCK_BRIDGE__ = false` makes them reject as unavailable instead.
 
-This distinction matters: a native WebView window can still be displaying a
-frontend that is operating in mock mode.
+A native WebView window can therefore display a frontend operating in mock mode.

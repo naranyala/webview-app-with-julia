@@ -9,7 +9,9 @@ julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
 It covers greetings, Fibonacci validation/calculation, the built frontend HTML,
-the Julia backend, and the Aural audio adapter. The direct diagnostic form is:
+the Julia backend, filesystem scanning, PDF/BibTeX/Blender boundaries,
+persistence, job lifecycle validation, asynchronous audio analysis, and the
+Aural/StaticMedia adapters. The direct diagnostic form is:
 
 ```sh
 julia --project=. -e 'using Test; include("test/runtests.jl")'
@@ -27,8 +29,8 @@ npm --prefix frontend-preact test
 ```
 
 The command runs the standalone `check-*.mjs` scripts, PDF/search benchmarks,
-and Vitest component tests. The current suite passes the utility checks and 24
-component tests across six test files.
+and Vitest component tests. Component tests cover shell navigation, backend
+health states, error recovery, and plugin registration.
 
 Useful focused commands include:
 
@@ -43,7 +45,8 @@ npm --prefix frontend-preact run map:check
 The check scripts cover backend error normalization, quiz data, Q&A parsing,
 Markdown, calendar helpers, schemas, paper/citation logic, MIR math, asset
 classification, map integrity, autosave ordering, fuzzy note search, and PDF
-generation.
+generation. Component tests additionally cover shell navigation, backend health
+states, error recovery, and plugin registration.
 
 ## Map data refresh
 
@@ -61,6 +64,6 @@ The validator expects 38 provinces, 514 administrative geometries, five
 excluded non-administrative features, the pinned source revision, closed rings,
 and coordinates within the Indonesia bounds used by the project.
 
-Keep generated files out of hand-edited source changes. After a successful
+Do not edit generated files manually. After a successful
 frontend build, confirm that `frontend-preact/dist/index.html` exists before
 running the native launcher.

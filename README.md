@@ -1,14 +1,14 @@
-# Julia + Preact WebView App
+# Julia and Preact WebView App
 
-A Linux-first desktop toolkit with a Julia/WebView shell and a Preact
-frontend. Julia creates the native window through direct `ccall` bindings to
-the official [webview C API](https://github.com/webview/webview); the frontend
-is bundled into a single HTML file for the launcher and can also run in a
-browser with mock backend behavior.
+A Linux desktop application with a Julia/WebView host and a Preact frontend.
+Julia creates the native window through direct `ccall` bindings to the official
+[webview C API](https://github.com/webview/webview). The frontend is bundled
+into a single HTML file for the launcher and can also run in a browser with
+mock backend behavior.
 
-## Current status
+## Features
 
-The active launcher exposes ten frontend tools:
+The launcher provides the following tools:
 
 - Sample Library
 - Monitor EQ
@@ -21,10 +21,10 @@ The active launcher exposes ten frontend tools:
 - Blender Companion
 - Todos
 
-The native Julia entry point routes the frontend backend contract through the
-queue bridge. The frontend adapter falls back to browser-safe mocks when those
-bindings are unavailable. Audio/MIR file work uses the app-owned adapter around
-the local Aural.jl dependency.
+The Julia entry point routes frontend requests through the queue bridge. When
+native bindings are unavailable, the frontend adapter uses browser mocks.
+Audio and MIR file operations use the app-owned adapter around the local
+Aural.jl dependency.
 
 For the detailed repository guide, see [`docs/README.md`](docs/README.md).
 
@@ -38,7 +38,7 @@ For the detailed repository guide, see [`docs/README.md`](docs/README.md).
 - WebKitGTK 4.1 development libraries
 
 The launcher checks for `gtk+-3.0` and `webkit2gtk-4.1`. On Debian or Ubuntu,
-the usual package set is:
+install:
 
 ```sh
 sudo apt install build-essential cmake git pkg-config \
@@ -84,8 +84,8 @@ produces:
 npm --prefix frontend-preact run dev
 ```
 
-Open <http://localhost:3000>. This is the fastest way to work on Preact tools;
-it uses the browser mock adapter and does not require the native toolchain.
+Open <http://localhost:3000>. The development server uses the browser mock
+adapter and does not require the native toolchain.
 
 Build the production bundle explicitly with:
 
@@ -110,7 +110,8 @@ covers backend errors, schemas, Markdown, Q&A, paper/citation logic, MIR math,
 asset helpers, map data, autosave, search, PDF output, and Preact components.
 
 The repository-state checks are documented in [`docs/testing.md`](docs/testing.md).
-`npm run build` runs formatting and binding checks before producing the bundle.
+`npm --prefix frontend-preact run build` runs formatting and binding checks
+before producing the bundle.
 
 ## Runtime overrides
 
@@ -130,16 +131,16 @@ JULIA_WEBVIEW_DEBUG=1 julia --project=. bin/webview_app.jl
 ```text
 .
 ├── bin/                         Julia entry points
-├── src/                         Julia package and manual WebView wrapper
+├── src/                         Julia package, backend groups, and WebView wrapper
 ├── native/                      C++ bridge and native build script
 ├── frontend-preact/
 │   ├── src/                     Preact shell, adapter, and plugins
 │   ├── public/                  HTML template and checked-in assets
-│   ├── plugins/                 esbuild plugins
+│   ├── build-plugins/           esbuild build plugins
 │   └── scripts/                 data-generation scripts
 ├── web/                         Legacy standalone Fibonacci HTML example
 ├── test/                        Julia tests
-└── docs/                        Maintainer and user documentation
+└── docs/                        Project documentation
 ```
 
 For architecture, backend payloads, tool behavior, and maintenance details,

@@ -13,13 +13,8 @@ const bindings = fs.readFileSync(
   path.join(root, 'src', 'bindings.d.ts'),
   'utf8'
 );
-const bridge = fs.readFileSync(
-  path.join(root, 'src', 'backend.js'),
-  'utf8'
-);
-const namesBlock = launcher.match(
-  /bindings\s*=\s*\[([\s\S]*?)\n\s*\]/
-);
+const bridge = fs.readFileSync(path.join(root, 'src', 'backend.js'), 'utf8');
+const namesBlock = launcher.match(/bindings\s*=\s*\[([\s\S]*?)\n\s*\]/);
 if (!namesBlock) {
   console.error('could not read bindings from bin/webview_app.jl');
   process.exit(1);

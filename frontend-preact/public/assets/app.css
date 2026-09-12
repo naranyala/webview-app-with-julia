@@ -319,20 +319,20 @@
 }
 
 @layer priority2 {
-  .x1vzqcvg {
-    border-color: #22d3ee;
+  .x14xp5e2 {
+    border-color: var(--x1nxp3da);
   }
 
-  .x1kqujdq {
-    border-color: #f8717124;
+  .xch8d90 {
+    border-color: var(--x4lftdj);
   }
 
-  .xbx5la0 {
-    border-color: #fbbf2424;
+  .xhevs4z {
+    border-color: var(--xcsgm7v);
   }
 
-  .x1jc32nq {
-    border-color: #22d3ee24;
+  .xgm4fpc {
+    border-color: var(--xpzriz4);
   }
 
   .x6ixg6f {
@@ -527,28 +527,28 @@
     transition: opacity .12s, filter .12s;
   }
 
-  .x1opbplr:checked {
-    border-color: #34d399;
+  .xvdmjpx:checked {
+    border-color: var(--x3yrnfp);
   }
 
-  .x1egvwrl:hover {
-    border-color: #22d3ee;
+  .xapj1ut:hover {
+    border-color: var(--xcsgm7v);
   }
 
-  .x13m2meb:hover {
-    border-color: #fb923c;
+  .x2lnxrb:hover {
+    border-color: var(--xpzriz4);
   }
 
-  .x1ni05b6:hover {
-    border-color: #22d3ee24;
+  .x1x83cyq:hover {
+    border-color: var(--xxj7vr7);
   }
 
-  .x67x8ir:focus {
-    border-color: #22d3ee;
+  .xb8x0uf:focus {
+    border-color: var(--xcsgm7v);
   }
 
-  .x1seyya9:focus {
-    border-color: #fbbf24;
+  .x1ga1ljk:focus {
+    border-color: var(--xoa1lxk);
   }
 
   @media (width <= 719px) {
@@ -593,8 +593,8 @@
     -webkit-line-clamp: 2;
   }
 
-  .xwr6scl {
-    accent-color: #22d3ee;
+  .x15ylhiw {
+    accent-color: var(--xcsgm7v);
   }
 
   .x6s0dn4 {
@@ -629,44 +629,8 @@
     backdrop-filter: blur(16px);
   }
 
-  .x1ikeiin {
-    background-color: #0e0f12;
-  }
-
-  .xlaugkq {
-    background-color: #16181c;
-  }
-
   .xs3sj1i {
     background-color: #164e63;
-  }
-
-  .x1dz40t3 {
-    background-color: #1e2025;
-  }
-
-  .x15mmxbi {
-    background-color: #22d3ee;
-  }
-
-  .x1usxjcn {
-    background-color: #34d399;
-  }
-
-  .x10ox22y {
-    background-color: #60a5fa;
-  }
-
-  .x4apdfk {
-    background-color: #a78bfa;
-  }
-
-  .xj67jvj {
-    background-color: #fb923c;
-  }
-
-  .xl7yhg6 {
-    background-color: #fbbf24;
   }
 
   .xupxvu5 {
@@ -677,32 +641,76 @@
     background-color: #0e0f12f5;
   }
 
-  .xj9dkcm {
-    background-color: #a78bfa24;
-  }
-
-  .xh0csrs {
-    background-color: #fb923c24;
-  }
-
-  .x1gqbt1q {
-    background-color: #fbbf2424;
-  }
-
-  .x72mkb3 {
-    background-color: #22d3ee24;
-  }
-
-  .x14krtwt {
-    background-color: #34d39924;
-  }
-
-  .x4jd6xr {
-    background-color: #60a5fa24;
-  }
-
   .xjbqb8w {
     background-color: #0000;
+  }
+
+  .xapqnxn {
+    background-color: var(--x11oavaw);
+  }
+
+  .x9a92bk {
+    background-color: var(--x1az6th6);
+  }
+
+  .xphyuqs {
+    background-color: var(--x1nwis53);
+  }
+
+  .x1w5ok0a {
+    background-color: var(--x1nxp3da);
+  }
+
+  .x1nhf0k8 {
+    background-color: var(--x1upevjl);
+  }
+
+  .xg2tz78 {
+    background-color: var(--x1uxnhsq);
+  }
+
+  .xkvyrxf {
+    background-color: var(--x1xjjqvd);
+  }
+
+  .x1kdgqlg {
+    background-color: var(--x3nzz2l);
+  }
+
+  .x9zwd2x {
+    background-color: var(--x3yrnfp);
+  }
+
+  .x195d3ry {
+    background-color: var(--xab3jlo);
+  }
+
+  .xjv2thk {
+    background-color: var(--xcfpbqk);
+  }
+
+  .xkffc7n {
+    background-color: var(--xcsgm7v);
+  }
+
+  .xzb7dq {
+    background-color: var(--xoa1lxk);
+  }
+
+  .xa5f0nn {
+    background-color: var(--xph3x42);
+  }
+
+  .x1b3rr3p {
+    background-color: var(--xpzriz4);
+  }
+
+  .xe36w0v {
+    background-color: var(--xqvcugv);
+  }
+
+  .xv7um68 {
+    background-color: var(--xxj7vr7);
   }
 
   .xn0gpz9 {
@@ -713,8 +721,8 @@
     background-image: linear-gradient(90deg, #8b5cf6, #c4b5fd);
   }
 
-  .xv2nehy {
-    background-image: linear-gradient(#ffffff12 1px, #0000 1px), linear-gradient(90deg, #ffffff12 1px, #0000 1px);
+  .x1s0f5wc {
+    background-image: linear-gradient(var(--x1f0a28v) 1px,transparent 1px),linear-gradient(90deg,var(--x1f0a28v) 1px,transparent 1px);
   }
 
   .x17dowwt {
@@ -729,8 +737,8 @@
     border-collapse: collapse;
   }
 
-  .x1asdeav {
-    box-shadow: 0 0 8px #34d39924;
+  .x1pyakgr {
+    box-shadow: 0 0 8px var(--xcfpbqk);
   }
 
   .xmh5sn8 {
@@ -747,48 +755,56 @@
     color-scheme: dark;
   }
 
-  .xo3pea5 {
-    color: #0e0f12;
-  }
-
   .x15pnp9 {
     color: #1e1b4b;
   }
 
-  .x15san7v {
-    color: #22d3ee;
+  .x19ozbqs {
+    color: var(--x176xob2);
   }
 
-  .xwxwkb9 {
-    color: #34d399;
+  .xuuvon6 {
+    color: var(--x1kvhiup);
   }
 
-  .xhegbo0 {
-    color: #60a5fa;
+  .x1f5i7gv {
+    color: var(--x1uxnhsq);
   }
 
-  .x1k2rvtp {
-    color: #8b8d96;
+  .xopb0ja {
+    color: var(--x24td2u);
   }
 
-  .xtcwr3o {
-    color: #a78bfa;
+  .x1kxidtv {
+    color: var(--x3nzz2l);
   }
 
-  .x1e6plxa {
-    color: #e8e9ed;
+  .xy0wn33 {
+    color: var(--x3yrnfp);
   }
 
-  .x1f5xtb {
-    color: #f87171;
+  .xc9y335 {
+    color: var(--x5o3t35);
   }
 
-  .x12ht0of {
-    color: #fb923c;
+  .xz2n2sr {
+    color: var(--xab3jlo);
   }
 
-  .xxqzkdn {
-    color: #fbbf24;
+  .x6hl0lj {
+    color: var(--xcsgm7v);
+  }
+
+  .x10rgv41 {
+    color: var(--xoa1lxk);
+  }
+
+  .x3mpybe {
+    color: var(--xqvcugv);
+  }
+
+  .xno7vud {
+    color: var(--xxj7vr7);
   }
 
   .x1ypdohk {
@@ -819,8 +835,8 @@
     display: none;
   }
 
-  .x2kcqf6 {
-    fill: #0e0f12;
+  .x16wpi34 {
+    fill: var(--x3nzz2l);
   }
 
   .x10569r6 {
@@ -1179,12 +1195,12 @@
     stroke-width: .1px;
   }
 
-  .xl0j0ok {
-    stroke: #0e0f12;
+  .x1aclqgr {
+    stroke: var(--x3nzz2l);
   }
 
-  .x16xgf4h {
-    stroke: #fbbf24;
+  .xdbib5e {
+    stroke: var(--xoa1lxk);
   }
 
   .x2b8uid {
@@ -1231,16 +1247,12 @@
     z-index: 20;
   }
 
-  .xihdjp2:checked {
-    background-color: #34d399;
+  .x1i8a5zi:checked {
+    background-color: var(--x3yrnfp);
   }
 
   .x1s9c2br:hover {
     background-color: #06b6d4;
-  }
-
-  .x1gpttjk:hover {
-    background-color: #26282e;
   }
 
   .x1geps0p:hover {
@@ -1251,16 +1263,20 @@
     background-color: #f59e0b;
   }
 
-  .x161r8o1:hover {
-    background-color: #f87171;
+  .x1rqosn9:hover {
+    background-color: var(--x176xob2);
   }
 
-  .x1mcrl3y:hover {
-    background-color: #22d3ee24;
+  .xfyj38l:hover {
+    background-color: var(--xm70j81);
   }
 
-  .xykkgtp:hover {
-    color: #e8e9ed;
+  .xxzpgiq:hover {
+    background-color: var(--xpzriz4);
+  }
+
+  .xzl2mkh:hover {
+    color: var(--x24td2u);
   }
 
   .x1frr76i:hover {
@@ -1397,8 +1413,8 @@
 }
 
 @layer priority4 {
-  .x15qfipv {
-    border-left-color: #22d3ee;
+  .xdt2gjq {
+    border-left-color: var(--xcsgm7v);
   }
 
   .x1ey2m1c {
@@ -1821,8 +1837,8 @@
     width: auto;
   }
 
-  .x91mmbe:focus {
-    border-bottom-color: #fbbf24;
+  .x1da3su5:focus {
+    border-bottom-color: var(--xoa1lxk);
   }
 
   @media (width <= 719px) {

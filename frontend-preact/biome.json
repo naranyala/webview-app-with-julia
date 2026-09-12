@@ -4,6 +4,7 @@
     "includes": [
       "**/*.js",
       "**/*.jsx",
+      "**/*.cjs",
       "biome.json",
       "!**/node_modules",
       "!**/dist",

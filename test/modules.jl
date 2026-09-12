@@ -1,6 +1,7 @@
 using Test
 using WebViewApp
 using Aural
+using WebViewApp.ManualWebview
 
 @testset "internal modules" begin
     @testset "AudioAnalysisAdapter" begin
@@ -45,10 +46,56 @@ using Aural
         end
     end
 
+    @testset "FileTrees bounds and callbacks" begin
+        mktempdir(homedir()) do directory
+            mkdir(joinpath(directory, "nested"))
+            write(joinpath(directory, "root.txt"), "root")
+            write(joinpath(directory, "nested", "child.txt"), "child")
+
+            shallow = FileTrees.scan(directory; max_depth=0)
+            @test shallow.scanned_files == 1
+            @test shallow.files[1].relative_path == "root.txt"
+
+            progress = FileTrees.ScanProgress[]
+            report = FileTrees.scan(
+                directory;
+                max_depth=1,
+                on_file=(entry, update) -> push!(progress, update),
+            )
+            @test report.scanned_files == 2
+            @test length(progress) == 2
+            @test progress[end].scanned_files == 2
+            @test progress[end].scanned_bytes == report.scanned_bytes
+
+            limited = FileTrees.scan(directory; max_entries=1)
+            @test limited.scanned_files == 1
+            @test limited.truncated
+
+            cancelled = FileTrees.scan(directory; should_cancel=() -> true)
+            @test cancelled.cancelled
+            @test cancelled.scanned_files == 0
+        end
+
+        @test_throws ArgumentError FileTrees.scan("/definitely/missing")
+        mktempdir() do directory
+            @test_throws ArgumentError FileTrees.scan(directory; max_depth=-1)
+            @test_throws ArgumentError FileTrees.scan(directory; max_entries=0)
+        end
+    end
+
     @testset "PDFGen" begin
         bytes = PDFGen.pdf_bytes("Title", "Hello (world)")
         @test startswith(String(bytes[1:8]), "%PDF-1.4")
         @test occursin("Hello \\(world\\)", String(bytes))
+
+        long_body = join(fill("line", 60), "\n")
+        @test count(" /Type /Page /Parent ", String(PDFGen.pdf_bytes("Title", long_body))) == 2
+
+        mktempdir() do directory
+            path = joinpath(directory, "generated.pdf")
+            @test PDFGen.write_pdf(path, "Title", "Body") == path
+            @test startswith(read(path, String), "%PDF-1.4")
+        end
     end
 
     @testset "BibTeX" begin
@@ -61,6 +108,20 @@ using Aural
         rendered = BibTeX.write_bibtex(entries)
         @test occursin("@article{smith2026", rendered)
         @test occursin("year = {2026}", rendered)
+
+        source = """
+        @comment{ignored}
+        @string{journal = "Journal"}
+        @book(key,
+            title = "A, title",
+            note = {nested {braces}})
+        @article{second}
+        """
+        parsed = BibTeX.parse_bibtex(source)
+        @test [entry.key for entry in parsed] == ["key", "second"]
+        @test parsed[1].fields["title"] == "A, title"
+        @test parsed[1].fields["note"] == "nested {braces}"
+        @test_throws ArgumentError BibTeX.parse_bibtex("@article{x, title={broken}")
     end
 
     @testset "BlendReader" begin
@@ -72,6 +133,24 @@ using Aural
             @test header.pointer_size == 64
             @test header.byte_order == :little
             @test header.version == v"3.00.0"
+
+            truncated = joinpath(directory, "truncated.blend")
+            write(truncated, "BLENDER")
+            @test !BlendReader.is_blend(truncated)
+            @test_throws ArgumentError BlendReader.read_header(truncated)
+
+            invalid = joinpath(directory, "invalid.blend")
+            write(invalid, UInt8[codeunits("BLENDER?x300")...])
+            @test BlendReader.is_blend(invalid)
+            @test_throws ArgumentError BlendReader.read_header(invalid)
         end
+    end
+
+    @testset "ManualWebview null handles" begin
+        window = ManualWebview.Window(C_NULL)
+        queue = ManualWebview.Queue(C_NULL)
+        @test !ManualWebview.is_open(window)
+        @test ManualWebview.destroy!(window) === nothing
+        @test ManualWebview.destroy_queue!(queue) === nothing
     end
 end

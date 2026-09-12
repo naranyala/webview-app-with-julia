@@ -19,7 +19,7 @@ The source entry point is `src/main.jsx`; it imports the global CSS, mounts
 
 ## Adding a tool
 
-Plugins use the small manifest contract in `src/plugins/contract.js`:
+Plugins implement the manifest contract in `src/plugins/contract.js`:
 
 ```js
 defineFrontendPlugin({
@@ -38,19 +38,23 @@ manifest entry, and add that entry to `registeredPlugins`. The registry checks
 for duplicate IDs. The shell automatically exposes non-tool entries on the
 primary rail and entries in `TOOL_IDS` under Tools.
 
-Keep plugin state inside the plugin where possible. Use `backend.js` for native
+Keep plugin state inside the plugin. Use `backend.js` for native
 operations and the shared autosave registry when a workspace has pending data
 that must be flushed before navigation or window close.
 
 ## Data and rendering conventions
 
-- `stylex-styles.js` contains the StyleX tokens and the `sx()` class helper.
+- `stylex-styles.js` exposes the shared StyleX facade; token and style definitions
+  are grouped in `stylex-tokens.stylex.js` and the domain-specific `stylex-*.js`
+  modules.
 - `stylex.css` contains global CSS and third-party/legacy styles that are not
   emitted by StyleX.
-- `note-markdown.js` provides a deliberately small, deterministic Markdown
-  subset used by notes and paper content.
+- `note-markdown.js` provides a deterministic Markdown subset used by notes and
+  paper content.
 - `paper.js` and `note-pdf.js` use shared block models so screen output, print
   output, and PDF output stay aligned.
+- `note-pdf-jspdf.js` owns the jsPDF renderer while `note-pdf.js` keeps block
+  construction and exporter selection.
 - `schemas.js` normalizes malformed quiz payloads instead of allowing invalid
   backend data to reach renderers.
 
@@ -67,6 +71,10 @@ provinces and 514 administrative areas. Refresh it with:
 npm --prefix frontend-preact run map:refresh
 npm --prefix frontend-preact run map:check
 ```
+
+`src/plugins/indonesia-map-crosswalk.js` is the matching administrative
+name/type/code reference data. These large files are data artifacts, not
+behavioral modules, so they remain separate from the map logic.
 
 The refresh script downloads the pinned GeoBoundaries source revision unless
 `INDONESIA_MAP_SOURCE_FILE` points to a local GeoJSON file. It applies the

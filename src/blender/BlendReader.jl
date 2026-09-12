@@ -10,9 +10,9 @@ struct BlendHeader
 end
 
 function is_blend(path::AbstractString)
-    isfile(path) || return false
+    isfile(path) && filesize(path) >= 12 || return false
     open(path, "r") do io
-        length(read(io, min(7, filesize(path)))) == 7 || return false
+        length(read(io, 7)) == 7 || return false
         seekstart(io)
         read(io, 7) == UInt8[codeunits("BLENDER")...]
     end

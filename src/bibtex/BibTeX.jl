@@ -124,7 +124,7 @@ function _parse_entry(source)
     entry_type = lowercase(strip(source[nextind(source, at):prevind(source, brace)]))
     body = source[nextind(source, brace):prevind(source, ending)]
     comma = findfirst(==(','), body)
-    comma === nothing && return BibEntry(entry_type, strip(body), Dict{String,String}())
+    comma === nothing && return BibEntry(entry_type, strip(body), Dict{String,String}()), ending
     key = strip(body[firstindex(body):prevind(body, comma)])
     fields = Dict{String,String}()
     for field in _split_fields(body[nextind(body, comma):end])

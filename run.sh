@@ -85,14 +85,19 @@ needs_frontend_build() {
     if [[ "$FORCE_BUILD" -eq 1 ]]; then return 0; fi
     if [[ ! -f "$FRONTEND_DIST" ]]; then return 0; fi
 
-    # Rebuild if any source file is newer than the dist
-    local newest_src
-    newest_src=$(find "$FRONTEND_DIR/src" -name '*.js' -o -name '*.jsx' -o -name '*.css' -o -name '*.mjs' | \
-        xargs stat -c '%Y' 2>/dev/null | sort -rn | head -1)
+    # Rebuild if any frontend input is newer than the generated bundle.
+    local newest_input
+    newest_input=$(find \
+        "$FRONTEND_DIR/src" \
+        "$FRONTEND_DIR/public" \
+        "$FRONTEND_DIR/build-plugins" \
+        "$FRONTEND_DIR/build.cjs" \
+        -type f \( -name '*.js' -o -name '*.jsx' -o -name '*.css' -o -name '*.mjs' -o -name '*.cjs' -o -name '*.html' \) \
+        -print0 | xargs -0 stat -c '%Y' 2>/dev/null | sort -rn | head -1)
     local dist_time
     dist_time=$(stat -c '%Y' "$FRONTEND_DIST" 2>/dev/null || echo 0)
 
-    if [[ -n "$newest_src" && "$newest_src" -gt "$dist_time" ]]; then
+    if [[ -n "$newest_input" && "$newest_input" -gt "$dist_time" ]]; then
         return 0
     fi
     return 1

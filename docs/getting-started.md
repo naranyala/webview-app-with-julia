@@ -1,16 +1,16 @@
 # Getting started
 
-## What this project is
+## Overview
 
-This is a Linux-first desktop application starter. Julia owns the native
-window and communicates with an HTML frontend through the official
+This Linux desktop application uses Julia to create the native window and
+communicate with an HTML frontend through the official
 [webview](https://github.com/webview/webview) C API. The frontend is built with
 Preact, esbuild, and StyleX, then emitted as a self-contained HTML document for
 the desktop launcher.
 
-The browser frontend can also run on its own. Missing `window.*` bindings are
-handled by the adapter in `frontend-preact/src/backend.js`, so most frontend
-work does not require opening a native window.
+The frontend can also run in a browser. Missing `window.*` bindings are handled
+by the adapter in `frontend-preact/src/backend.js`, so frontend development does
+not require opening a native window.
 
 ## Prerequisites
 
@@ -25,7 +25,7 @@ The launcher checks these commands and libraries itself. Package names vary by
 distribution; the important `pkg-config` names are `gtk+-3.0` and
 `webkit2gtk-4.1`.
 
-For Debian or Ubuntu, the equivalent package set is typically:
+For Debian or Ubuntu, install:
 
 ```sh
 sudo apt install build-essential cmake git pkg-config \
@@ -50,13 +50,13 @@ julia --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
 `Project.toml` declares JSON3, LinuxCompanion, and the local development
-dependency `../Aural.jl`; Julia's `Manifest.toml` is intentionally ignored by
-the repository. Before distributing the app, replace the local Aural source
-with a tagged or registered Aural release.
+dependency `../Aural.jl`; Julia's `Manifest.toml` is ignored by Git. Before
+distributing the app, replace the local Aural source with a tagged or
+registered Aural release.
 
 ## Build and run
 
-The intended one-command workflow is:
+Run the application with:
 
 ```sh
 ./run.sh
@@ -66,7 +66,7 @@ The intended one-command workflow is:
 missing or stale, builds the native WebView libraries when needed, instantiates
 Julia dependencies, and launches `bin/webview_app.jl`.
 
-Useful flags:
+Options:
 
 ```sh
 ./run.sh --build       # force frontend and native rebuilds
@@ -90,7 +90,7 @@ julia --project=. bin/webview_app.jl
 ```
 
 The production launcher loads `frontend-preact/dist/index.html`. That file is
-generated and ignored by Git, so a clean checkout must build the frontend
+generated and ignored by Git, so a fresh checkout must build the frontend
 before launching.
 
 ## Frontend-only development
@@ -104,9 +104,9 @@ npm --prefix frontend-preact run dev
 Open <http://localhost:3000>. The development server uses the mock backend and
 does not require Julia, GTK, WebKitGTK, or the native libraries.
 
-`npm run serve` serves the current `public/` assets without the check/watch
-step. `npm run dev` runs the formatter/linter check first and then starts the
-esbuild watch server.
+`npm --prefix frontend-preact run serve` serves the existing `public/` assets
+without the check/watch step. `npm --prefix frontend-preact run dev` runs the
+formatter/linter check first and then starts the esbuild watch server.
 
 ## Runtime overrides
 

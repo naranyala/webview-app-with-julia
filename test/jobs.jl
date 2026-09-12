@@ -4,7 +4,9 @@ using WebViewApp.Jobs
 @testset "Jobs" begin
     @testset "constructor and creation" begin
         @test_throws ArgumentError JobManager(max_jobs=0)
+        @test_throws ArgumentError JobManager(max_jobs=true)
         @test_throws ArgumentError JobManager(retention_seconds=-1)
+        @test_throws ArgumentError JobManager(retention_seconds=NaN)
 
         metadata = Dict("path" => "/tmp/assets", "options" => Dict("depth" => 2))
         manager = JobManager()
@@ -20,6 +22,19 @@ using WebViewApp.Jobs
 
         initial["metadata"]["options"]["depth"] = 99
         @test snapshot(manager, id)["metadata"]["options"]["depth"] == 2
+    end
+
+    @testset "input validation" begin
+        manager = JobManager()
+        @test_throws ArgumentError create_job!(manager; kind=" ")
+        @test_throws ArgumentError create_job!(manager; metadata=[])
+        @test_throws ArgumentError create_job!(manager; metadata=Dict(1 => "one", "1" => "duplicate"))
+
+        id = create_job!(manager)
+        @test_throws ArgumentError update_job!(manager, id; progress=-0.1)
+        @test_throws ArgumentError update_job!(manager, id; progress=1.1)
+        @test_throws ArgumentError update_job!(manager, id; progress=true)
+        @test_throws ArgumentError update_job!(manager, id; message=123)
     end
 
     @testset "cooperative updates and cancellation" begin

@@ -2,7 +2,7 @@
 
 ## Julia WebView wrapper
 
-`src/ManualWebview.jl` is a small direct wrapper around the WebView C API. It
+`src/ManualWebview.jl` is a direct wrapper around the WebView C API. It
 does not depend on a Julia WebView package. The exported surface includes:
 
 - window lifecycle: `create`, `destroy!`, `run!`, `is_open`, `terminate!`;
@@ -17,7 +17,7 @@ Library paths default to `native/lib/libwebview.so` and
 `native/lib/libjulia_webview_bridge.so`, with environment overrides documented
 in [Getting started](getting-started.md).
 
-## Current Julia bindings
+## Julia bindings
 
 `bin/webview_app.jl` registers the frontend contract on the queue:
 
@@ -33,18 +33,18 @@ in [Getting started](getting-started.md).
 Errors in the request loop are returned with status `1` and a JSON-encoded
 error message. Each request is closed in a `finally` block.
 
-The legacy `web/index.html` exercises these three bindings directly. The
-current Preact frontend is loaded from `frontend-preact/dist/index.html`
-instead, so the legacy Fibonacci page is not the active application UI.
+The legacy `web/index.html` exercises these three bindings directly. The Preact
+frontend loads from `frontend-preact/dist/index.html`; the legacy Fibonacci page
+is not part of the application UI.
 
 ## Frontend backend adapter
 
-`frontend-preact/src/backend.js` exposes a stable Promise-based adapter. It
+`frontend-preact/src/backend.js` exposes a Promise-based adapter. It
 validates arguments, calls a native `window[name]` function when present, and
 wraps the result in a five-second timeout by default. Use
 `setDefaultTimeout(ms)` for tests or a different host environment.
 
-The modeled contract includes these groups:
+The adapter exposes the following groups:
 
 | Group | Functions |
 | --- | --- |
@@ -68,8 +68,9 @@ asset and audio calls use deterministic mock responses or mock errors.
 2. a bare error name such as `NoteNotFound`; or
 3. a local adapter error such as `Timeout`, `Unavailable`, or `InvalidArgument`.
 
-The UI should switch on `code` and display `message`. `backendError()` is the
-short display-only helper; `backendErrorWithCode()` is useful for diagnostics.
+The UI should switch on `code` and display `message`. `backendError()` returns a
+short display string; `backendErrorWithCode()` preserves the error code for
+diagnostics.
 
 ## Jobs and persistence
 
@@ -90,5 +91,6 @@ content rather than an arbitrary native path; exports are confined to
 `~/Documents/`.
 
 `frontend-preact/src/bindings.d.ts`, `backend.js`, and `check-bindings.cjs` are
-kept aligned with `bin/webview_app.jl`; `npm run check:bindings` verifies all
-registered names. Browser mode remains available through the adapter's mocks.
+kept aligned with `bin/webview_app.jl`. Run
+`npm --prefix frontend-preact run check:bindings` to verify all registered
+names. Browser mode remains available through the adapter's mocks.
