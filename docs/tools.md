@@ -2,16 +2,14 @@
 
 ## Tools reachable from the launcher
 
-These are the six entries in `frontendPlugins` and are the only tools currently
-rendered by `App.jsx`.
+These are the ten entries in `frontendPlugins` rendered by `App.jsx`.
 
 ### Sample Library
 
-Select a volume and start an asset scan. A complete backend can provide volume
+Select a volume and start an asset scan. The native backend provides volume
 metadata and bounded scan results grouped into Blender files, audio, renders,
-and other files. Without the full native contract, the UI uses mock volumes and
-explicitly does not read the filesystem; the folder-size panel is also demo
-data.
+and other files. Browser mode uses mock volumes; native scans read only the
+selected volume.
 
 ### Monitor EQ
 
@@ -64,11 +62,9 @@ focus a province, click a region, and inspect the corresponding data table.
 Boundaries and lookup data are bundled locally; no map tile service is required
 for the boundary layer.
 
-## Components present but not registered
+## Additional Tools
 
-The following modules are in the repository and covered by parts of the
-frontend test suite, but they are not in `registeredPlugins` and do not appear
-in the current launcher:
+The following modules are also registered in the current shell:
 
 | Module | Implemented behavior |
 | --- | --- |
@@ -77,6 +73,5 @@ in the current launcher:
 | `todo.jsx` | Todo list with all/active/completed filters, due dates, hash filters, local storage, and calendar mode. |
 | `blender-companion.jsx` | Local scene tracking with Blender engine/stage fields and logging to notes. |
 
-Register these intentionally only after deciding their backend and persistence
-behavior. In particular, Chain Notes and Blender Companion call note bindings,
-while Quiz expects the quiz storage contract.
+Chain Notes and Blender Companion use note bindings, while Quiz uses the quiz
+storage contract.

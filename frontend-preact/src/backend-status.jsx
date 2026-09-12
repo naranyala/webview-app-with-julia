@@ -2,9 +2,11 @@ import { useEffect, useState } from 'preact/hooks';
 import { backend, backendError, errorDetails } from './backend.js';
 import { sx } from './stylex-styles.js';
 
+// Small health probe used by the shell header. Calls are serialized locally so
+// repeated clicks cannot overlap a bridge request or race their status text.
 export function BackendStatus({ compact = false }) {
   const [count, setCount] = useState(null);
-  const [systemInfo, setSystemInfo] = useState('');
+  const [systemInfo, setSystemInfo] = useState(null);
   const [timestamp, setTimestamp] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
@@ -26,9 +28,11 @@ export function BackendStatus({ compact = false }) {
 
   async function probe() {
     try {
-      await backend.getStatus();
-      setHealth('ok');
-      setHealthDetail('');
+      const status = await backend.getStatus();
+      setHealth(status.status === 'ok' ? 'ok' : 'degraded');
+      setHealthDetail(
+        status.status === 'ok' ? '' : `Backend status: ${status.status}`
+      );
     } catch (err) {
       setHealth('unavailable');
       setHealthDetail(errorDetails(err).message);
@@ -36,13 +40,17 @@ export function BackendStatus({ compact = false }) {
   }
 
   useEffect(() => {
+    // Probe once on mount without routing through the interactive `run` helper;
+    // this initial check should not show a transient action error to the user.
     let cancelled = false;
     (async () => {
       try {
-        await backend.getStatus();
+        const status = await backend.getStatus();
         if (!cancelled) {
-          setHealth('ok');
-          setHealthDetail('');
+          setHealth(status.status === 'ok' ? 'ok' : 'degraded');
+          setHealthDetail(
+            status.status === 'ok' ? '' : `Backend status: ${status.status}`
+          );
         }
       } catch (err) {
         if (!cancelled) {
@@ -59,9 +67,26 @@ export function BackendStatus({ compact = false }) {
   const healthBadge =
     health === 'ok'
       ? ' · Backend ok'
-      : health === 'unavailable'
-        ? ' · Backend unavailable'
-        : '';
+      : health === 'degraded'
+        ? ' · Backend degraded'
+        : health === 'unavailable'
+          ? ' · Backend unavailable'
+          : '';
+
+  function formatSystemInfo(info) {
+    if (!info) return '';
+    try {
+      const parsed = typeof info === 'string' ? JSON.parse(info) : info;
+      const parts = [];
+      if (parsed.julia_version) parts.push(`Julia ${parsed.julia_version}`);
+      if (parsed.platform) parts.push(parsed.platform);
+      if (parsed.features !== undefined)
+        parts.push(`${parsed.features} features`);
+      return parts.join(' · ') || '';
+    } catch {
+      return String(info);
+    }
+  }
 
   return (
     <div className={sx('backend-status')} aria-live="polite">
@@ -71,7 +96,7 @@ export function BackendStatus({ compact = false }) {
       </span>
       <span className={sx('backend-status-value')}>
         {[
-          systemInfo && `${systemInfo}`,
+          formatSystemInfo(systemInfo),
           timestamp && `t:${timestamp}`,
           count !== null && `#${count}`
         ]
@@ -111,9 +136,9 @@ export function BackendStatus({ compact = false }) {
           Refresh
         </button>
       </span>
-      {health === 'unavailable' && healthDetail && (
+      {(health === 'unavailable' || health === 'degraded') && healthDetail && (
         <span className={sx('backend-status-error')} role="alert">
-          Backend unavailable: {healthDetail}
+          Backend health: {healthDetail}
         </span>
       )}
       {error && (

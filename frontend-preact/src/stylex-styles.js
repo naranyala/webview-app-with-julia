@@ -38,7 +38,8 @@ export const styles = stylex.create({
     color: c.text,
     fontSize: 15,
     lineHeight: 1.5,
-    fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontFamily:
+      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     '@media (min-width: 720px)': { fontSize: 15.5 },
     '@media (max-width: 719px)': { paddingLeft: 0, paddingBottom: 60 }
   },
@@ -74,9 +75,9 @@ export const styles = stylex.create({
     alignItems: 'center',
     gap: '0.35rem',
     marginLeft: 'auto',
-    color: c.muted,
-    fontSize: '0.7rem',
-    fontWeight: 600,
+    color: c.textSecondary,
+    fontSize: '0.62rem',
+    fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '0.08em'
   },
@@ -97,7 +98,7 @@ export const styles = stylex.create({
     marginLeft: '-0.25rem',
     borderRadius: 8,
     backgroundColor: 'transparent',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '1.25rem',
     ':hover': { color: c.text, backgroundColor: c.surfaceHover }
   },
@@ -124,7 +125,7 @@ export const styles = stylex.create({
     padding: '0.35rem 0.5rem',
     borderRadius: 7,
     backgroundColor: 'transparent',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.85rem',
     ':hover': { backgroundColor: c.surfaceHover, color: c.text }
   },
@@ -140,7 +141,6 @@ export const styles = stylex.create({
     gap: 2,
     width: 64,
     padding: '0.5rem 0.4rem',
-    borderRight: `1px solid ${c.border}`,
     backgroundColor: 'rgba(14, 15, 18, 0.96)',
     backdropFilter: 'blur(16px)',
     '@media (max-width: 719px)': {
@@ -165,7 +165,7 @@ export const styles = stylex.create({
     minHeight: 56,
     borderRadius: 10,
     backgroundColor: 'transparent',
-    color: c.muted,
+    color: c.textSecondary,
     ':hover': { color: c.text, backgroundColor: c.surfaceHover },
     '@media (max-width: 719px)': { flex: '0 0 4rem', minHeight: 52 }
   },
@@ -193,7 +193,6 @@ export const styles = stylex.create({
     zIndex: 19,
     width: 240,
     padding: '1rem 0.75rem',
-    borderRight: `1px solid ${c.border}`,
     backgroundColor: c.surface,
     boxShadow: '12px 0 32px rgba(0, 0, 0, 0.4)',
     overflowY: 'auto',
@@ -201,13 +200,12 @@ export const styles = stylex.create({
       left: 0,
       bottom: 60,
       width: 'min(20rem, calc(100vw - 1rem))',
-      padding: '0.75rem',
-      borderRight: `1px solid ${c.border}`
+      padding: '0.75rem'
     }
   },
   groupLabel: {
     margin: '0 0 0.6rem 0.25rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.68rem',
     fontWeight: 800,
     letterSpacing: '0.12em',
@@ -220,7 +218,7 @@ export const styles = stylex.create({
     alignItems: 'flex-start',
     gap: '0.6rem',
     padding: '0.7rem 0.65rem',
-    border: '1px solid transparent',
+    borderLeft: '3px solid transparent',
     borderRadius: 12,
     backgroundColor: 'transparent',
     color: c.text,
@@ -229,7 +227,7 @@ export const styles = stylex.create({
     ':hover': { backgroundColor: c.surfaceHover }
   },
   sideItemActive: {
-    borderColor: c.borderStrong,
+    borderLeftColor: c.cyan,
     backgroundColor: c.surfaceAlt
   },
   sideGlyph: { fontSize: '1.1rem', lineHeight: 1.4 },
@@ -240,7 +238,11 @@ export const styles = stylex.create({
     minWidth: 0
   },
   sideCopyStrong: { fontSize: '0.85rem' },
-  sideCopySmall: { color: c.muted, fontSize: '0.72rem', lineHeight: 1.4 },
+  sideCopySmall: {
+    color: c.textSecondary,
+    fontSize: '0.72rem',
+    lineHeight: 1.4
+  },
   launcher: {
     display: 'flex',
     flexDirection: 'column',
@@ -287,7 +289,7 @@ export const styles = stylex.create({
   mapReset: { minHeight: 32, fontSize: '0.68rem' },
   mapCount: {
     flexShrink: 0,
-    color: c.muted,
+    color: c.textSecondary,
     fontFamily: 'monospace',
     fontSize: '0.62rem',
     textTransform: 'uppercase'
@@ -319,7 +321,7 @@ export const styles = stylex.create({
     padding: '0.45rem 0.65rem',
     borderRadius: 7,
     backgroundColor: 'transparent',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.72rem',
     fontWeight: 700,
     ':hover': { color: c.text, backgroundColor: c.surfaceHover }
@@ -348,8 +350,7 @@ export const styles = stylex.create({
     border: `1px solid ${c.borderStrong}`,
     borderRadius: 11,
     backgroundColor: c.bg,
-    backgroundImage:
-      `linear-gradient(${c.border} 1px, transparent 1px), linear-gradient(90deg, ${c.border} 1px, transparent 1px)`,
+    backgroundImage: `linear-gradient(${c.border} 1px, transparent 1px), linear-gradient(90deg, ${c.border} 1px, transparent 1px)`,
     backgroundSize: '32px 32px'
   },
   mapSvg: {
@@ -383,7 +384,7 @@ export const styles = stylex.create({
     border: `1px solid ${c.borderStrong}`,
     borderRadius: 7,
     backgroundColor: 'rgba(14, 15, 18, 0.88)',
-    color: c.muted,
+    color: c.textSecondary,
     fontFamily: 'monospace',
     fontSize: '0.58rem',
     textAlign: 'right',
@@ -396,7 +397,7 @@ export const styles = stylex.create({
     justifyContent: 'space-between',
     gap: '0.75rem',
     marginTop: '0.65rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.68rem',
     '@media (max-width: 719px)': {
       alignItems: 'flex-start',
@@ -472,9 +473,13 @@ export const styles = stylex.create({
     minWidth: 0
   },
   mapListCopyStrong: { fontSize: '0.78rem' },
-  mapListCopySmall: { color: c.muted, fontSize: '0.64rem' },
-  mapListChevron: { color: c.muted, fontSize: '1.2rem', textAlign: 'right' },
-  mapEmpty: { padding: '0.6rem', color: c.muted, fontSize: '0.76rem' },
+  mapListCopySmall: { color: c.textSecondary, fontSize: '0.64rem' },
+  mapListChevron: {
+    color: c.textSecondary,
+    fontSize: '1.2rem',
+    textAlign: 'right'
+  },
+  mapEmpty: { padding: '0.6rem', color: c.textSecondary, fontSize: '0.76rem' },
   mapDataPanel: {
     display: 'flex',
     flexDirection: 'column',
@@ -511,7 +516,7 @@ export const styles = stylex.create({
   mapTableHead: {
     padding: '0.65rem 0.7rem',
     borderBottom: `1px solid ${c.borderStrong}`,
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.6rem',
     fontWeight: 700,
     letterSpacing: '0.06em',
@@ -522,7 +527,7 @@ export const styles = stylex.create({
   mapTableCell: {
     padding: '0.65rem 0.7rem',
     borderBottom: `1px solid ${c.border}`,
-    color: c.muted,
+    color: c.textSecondary,
     whiteSpace: 'nowrap',
     '@media (max-width: 719px)': {
       padding: '0.55rem 0.45rem',
@@ -551,7 +556,7 @@ export const styles = stylex.create({
   mapTableEmpty: {
     margin: 0,
     padding: '1rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.76rem'
   },
   mapSelection: {
@@ -581,12 +586,12 @@ export const styles = stylex.create({
   mapSelectionName: { margin: '0.2rem 0 0', fontSize: '1.05rem' },
   mapSource: {
     margin: 0,
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.68rem',
     lineHeight: 1.5
   },
   eyebrow: {
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.66rem',
     fontWeight: 700,
     letterSpacing: '0.14em',
@@ -603,7 +608,7 @@ export const styles = stylex.create({
   lede: {
     margin: '0.5rem 0 0',
     maxWidth: '28rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.88rem',
     lineHeight: 1.55
   },
@@ -653,7 +658,7 @@ export const styles = stylex.create({
   },
   rowCopyStrong: { fontSize: '0.95rem' },
   rowCopySmall: {
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.78rem',
     lineHeight: 1.4,
     display: '-webkit-box',
@@ -662,7 +667,7 @@ export const styles = stylex.create({
     overflow: 'hidden'
   },
   rowChevron: {
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '1.4rem',
     lineHeight: 1,
     '@media (min-width: 720px)': { marginTop: 'auto' }
@@ -757,7 +762,7 @@ export const styles = stylex.create({
     marginBottom: '1rem'
   },
   panelLabel: {
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.66rem',
     fontWeight: 700,
     letterSpacing: '0.14em',
@@ -768,7 +773,7 @@ export const styles = stylex.create({
   selectLabel: {
     display: 'block',
     marginBottom: '0.35rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.75rem'
   },
   select: {
@@ -782,7 +787,7 @@ export const styles = stylex.create({
     color: c.text,
     fontSize: '0.9rem'
   },
-  muted: { color: c.muted, fontSize: '0.72rem' },
+  muted: { color: c.textSecondary, fontSize: '0.72rem' },
   summaryRow: {
     display: 'flex',
     alignItems: 'center',
@@ -823,7 +828,7 @@ export const styles = stylex.create({
   },
   note: {
     margin: '0.75rem 0 0',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.72rem',
     lineHeight: 1.5
   },
@@ -839,7 +844,7 @@ export const styles = stylex.create({
     justifyContent: 'space-between',
     gap: '0.5rem',
     marginBottom: '0.4rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.8rem'
   },
   folderStrong: { color: c.text },
@@ -851,7 +856,7 @@ export const styles = stylex.create({
     marginTop: '1.25rem',
     paddingTop: '0.8rem',
     borderTop: `1px solid ${c.border}`,
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.8rem'
   },
   strongGreen: { color: c.green },
@@ -906,7 +911,7 @@ export const styles = stylex.create({
   },
   searchEngineNote: {
     margin: '0.45rem 0 0',
-    color: c.muted,
+    color: c.textSecondary,
     fontFamily: 'monospace',
     fontSize: '0.58rem',
     textTransform: 'uppercase'
@@ -953,7 +958,7 @@ export const styles = stylex.create({
     fontSize: '0.58rem',
     textTransform: 'uppercase'
   },
-  noteUpdated: { color: c.muted, textTransform: 'none' },
+  noteUpdated: { color: c.textSecondary, textTransform: 'none' },
   noteTitle: {
     color: c.text,
     fontSize: '0.82rem',
@@ -966,13 +971,13 @@ export const styles = stylex.create({
   noteBody: {
     display: '-webkit-box',
     overflow: 'hidden',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.7rem',
     lineHeight: 1.4,
     WebkitBoxOrient: 'vertical',
     WebkitLineClamp: 2
   },
-  empty: { padding: '0.75rem', color: c.muted, fontSize: '0.8rem' },
+  empty: { padding: '0.75rem', color: c.textSecondary, fontSize: '0.8rem' },
   saved: {
     display: 'block',
     marginTop: '0.3rem',
@@ -999,7 +1004,7 @@ export const styles = stylex.create({
     alignItems: 'center',
     gap: '0.8rem',
     marginTop: '0.6rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontFamily: 'monospace',
     fontSize: '0.62rem'
   },
@@ -1054,7 +1059,7 @@ export const styles = stylex.create({
     paddingTop: '0.8rem',
     borderTop: `1px solid ${c.border}`
   },
-  qnaHelp: { margin: '0.5rem 0', color: c.muted, fontSize: '0.72rem' },
+  qnaHelp: { margin: '0.5rem 0', color: c.textSecondary, fontSize: '0.72rem' },
   qnaImportInput: {
     width: '100%',
     minHeight: 120,
@@ -1078,7 +1083,7 @@ export const styles = stylex.create({
     marginTop: '1rem',
     paddingTop: '0.8rem',
     borderTop: `1px solid ${c.border}`,
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.72rem'
   },
   textButton: {
@@ -1112,7 +1117,7 @@ export const styles = stylex.create({
     padding: '0.5rem 0.8rem',
     borderRadius: 9,
     backgroundColor: c.surfaceAlt,
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.75rem'
   },
   toggleEnabled: {
@@ -1141,7 +1146,7 @@ export const styles = stylex.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '0.6rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontFamily: 'monospace',
     fontSize: '0.65rem'
   },
@@ -1183,7 +1188,7 @@ export const styles = stylex.create({
   },
   bandLabel: {
     order: -1,
-    color: c.muted,
+    color: c.textSecondary,
     fontFamily: 'monospace',
     fontSize: '0.68rem'
   },
@@ -1195,7 +1200,7 @@ export const styles = stylex.create({
     marginTop: '0.8rem',
     paddingTop: '0.8rem',
     borderTop: `1px solid ${c.border}`,
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.78rem'
   },
   masterRange: { flex: 1, minHeight: 44, accentColor: c.cyan },
@@ -1214,7 +1219,7 @@ export const styles = stylex.create({
     border: '1px solid transparent',
     borderRadius: 8,
     backgroundColor: c.surfaceAlt,
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.82rem',
     fontWeight: 600,
     ':hover': { borderColor: c.cyan, color: c.text }
@@ -1229,7 +1234,7 @@ export const styles = stylex.create({
     border: `1px solid ${c.border}`,
     borderRadius: 10,
     backgroundColor: c.surface,
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.78rem'
   },
   backendLabel: {
@@ -1293,7 +1298,7 @@ export const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-end',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.65rem',
     fontWeight: 700,
     textTransform: 'uppercase'
@@ -1351,7 +1356,7 @@ export const styles = stylex.create({
   },
   quizSummaryDescription: {
     margin: '0.25rem 0 0',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.78rem'
   },
   quizCount: {
@@ -1380,7 +1385,7 @@ export const styles = stylex.create({
   quizCopyStrong: { fontSize: '0.9rem' },
   quizCopySpan: {
     overflow: 'hidden',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.72rem',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap'
@@ -1404,7 +1409,7 @@ export const styles = stylex.create({
   },
   quizRowText: {
     margin: '0.4rem 0 0',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.78rem',
     lineHeight: 1.5
   },
@@ -1413,7 +1418,7 @@ export const styles = stylex.create({
     alignItems: 'center',
     gap: '0.75rem',
     margin: '1.25rem 0 0.75rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.68rem',
     fontWeight: 700
   },
@@ -1448,7 +1453,7 @@ export const styles = stylex.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '0.6rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.65rem',
     textTransform: 'uppercase'
   },
@@ -1489,7 +1494,7 @@ export const styles = stylex.create({
   },
   quizExplanation: {
     margin: '0.75rem 0 0',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.78rem'
   },
   quizActions: {
@@ -1507,7 +1512,7 @@ export const styles = stylex.create({
   },
   quizSecondary: {
     backgroundColor: c.surfaceAlt,
-    color: c.muted
+    color: c.textSecondary
   },
   quizPrimary: {
     backgroundColor: c.purple,
@@ -1522,7 +1527,7 @@ export const styles = stylex.create({
     justifyContent: 'space-between',
     gap: '0.6rem',
     marginBottom: '0.85rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.65rem'
   },
   quizIndexTitle: {
@@ -1548,7 +1553,7 @@ export const styles = stylex.create({
     padding: '0.45rem',
     borderRadius: 8,
     backgroundColor: 'transparent',
-    color: c.muted,
+    color: c.textSecondary,
     textAlign: 'left',
     ':hover': { backgroundColor: c.surfaceHover, color: c.text }
   },
@@ -1584,7 +1589,7 @@ export const styles = stylex.create({
     padding: '0.25rem 0.5rem',
     borderRadius: 999,
     backgroundColor: 'transparent',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '1.5rem',
     lineHeight: 1
   },
@@ -1616,7 +1621,7 @@ export const styles = stylex.create({
     lineHeight: 1.45,
     cursor: 'text'
   },
-  taskDone: { color: c.muted, textDecorationLine: 'line-through' },
+  taskDone: { color: c.textSecondary, textDecorationLine: 'line-through' },
   taskDestroy: {
     flexShrink: 0,
     minHeight: 36,
@@ -1624,7 +1629,7 @@ export const styles = stylex.create({
     padding: '0.25rem',
     borderRadius: 8,
     backgroundColor: 'transparent',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '1.1rem',
     lineHeight: 1,
     ':hover': { backgroundColor: c.red, color: 'white' }
@@ -1663,7 +1668,7 @@ export const styles = stylex.create({
   },
   calDow: {
     paddingBottom: '0.3rem',
-    color: c.muted,
+    color: c.textSecondary,
     fontSize: '0.62rem',
     fontWeight: 700,
     textAlign: 'center'
@@ -1694,9 +1699,18 @@ export const styles = stylex.create({
     gap: 2,
     minHeight: 5
   },
-  calDot: { width: 4, height: 4, borderRadius: '50%', backgroundColor: c.amber },
+  calDot: {
+    width: 4,
+    height: 4,
+    borderRadius: '50%',
+    backgroundColor: c.amber
+  },
   calDotDone: { backgroundColor: c.emerald },
-  calCount: { color: c.muted, fontFamily: 'monospace', fontSize: '0.6rem' },
+  calCount: {
+    color: c.textSecondary,
+    fontFamily: 'monospace',
+    fontSize: '0.6rem'
+  },
   coral: { color: c.coral },
   blue: { color: c.blue },
   gold: { color: c.gold },

@@ -4,7 +4,12 @@ import { parseQuizCollectionList } from '../schemas.js';
 import { styles, sx, toneStyle } from '../stylex-styles.js';
 import { quizCollections } from './quiz-data.js';
 
+// This module contains two views over one collection model:
+// QuizSession is the learner-facing flashcard flow; QuizEditor owns CRUD for
+// native/mock user decks. Bundled starter decks remain read-only references.
 function scoreLabel(score, total) {
+  // Product language is intentionally coarse: 70% marks a strong session,
+  // while any non-zero score is useful feedback rather than failure.
   if (score === total) return 'Perfect recall';
   if (score >= Math.ceil(total * 0.7)) return 'Strong session';
   if (score > 0) return 'Good foundation';
@@ -41,7 +46,10 @@ function QuizEditor({
   onDeleteCollection,
   onCreateQuestion,
   onUpdateQuestion,
-  onDeleteQuestion
+  onDeleteQuestion,
+  onExport,
+  onImport,
+  onBack
 }) {
   const [collectionId, setCollectionId] = useState(collections[0]?.id || '');
   const [query, setQuery] = useState('');
@@ -137,6 +145,13 @@ function QuizEditor({
           <div className={sx('quiz-editor-badge')}>
             {collection.readOnly ? 'Read only' : 'Editable'}
           </div>
+          <button
+            type="button"
+            className={sx('quiz-button', 'quiz-secondary')}
+            onClick={onBack}
+          >
+            Study decks
+          </button>
         </header>
 
         {storageError && (
@@ -199,6 +214,28 @@ function QuizEditor({
           </div>
           <span className={sx('quiz-count')}>
             {collection.questions.length} prompts
+          </span>
+        </section>
+
+        <section className={sx('quiz-toolbar')} aria-label="Deck transfer">
+          <button
+            type="button"
+            className={sx('quiz-button', 'quiz-secondary')}
+            onClick={() => onExport(collection.id)}
+          >
+            Export deck
+          </button>
+          <label className={sx('text-button')}>
+            Import deck
+            <input
+              type="file"
+              accept="application/json,.json"
+              hidden
+              onChange={onImport}
+            />
+          </label>
+          <span className={sx('muted')}>
+            JSON backups are validated before they are stored.
           </span>
         </section>
 
@@ -463,6 +500,7 @@ function QuizEditor({
 export function Quiz({ mode = 'session' }) {
   const [userCollections, setUserCollections] = useState([]);
   const [storageError, setStorageError] = useState('');
+  const [viewMode, setViewMode] = useState(mode);
 
   useEffect(() => {
     let cancelled = false;
@@ -480,6 +518,8 @@ export function Quiz({ mode = 'session' }) {
     };
   }, []);
 
+  // Merge immutable bundled content with persisted user content. IDs are
+  // normalized by withIds so both sources can use the same editor/session UI.
   const collections = useMemo(
     () => [
       ...withIds(quizCollections, true),
@@ -489,6 +529,8 @@ export function Quiz({ mode = 'session' }) {
   );
 
   function replaceCollection(stored) {
+    // Backend mutations return the canonical record. Upsert it locally so the
+    // UI reflects server-generated ids and normalized fields immediately.
     if (!stored?.id) return null;
     setUserCollections((current) =>
       current.some((item) => item.id === stored.id)
@@ -499,6 +541,8 @@ export function Quiz({ mode = 'session' }) {
   }
 
   async function runGuarded(label, call) {
+    // All CRUD flows share one error boundary; failed persistence leaves the
+    // previous local state intact rather than applying an optimistic mutation.
     setStorageError('');
     try {
       return await call();
@@ -610,7 +654,28 @@ export function Quiz({ mode = 'session' }) {
     return false;
   }
 
-  if (mode === 'editor') {
+  async function exportCollection(collectionId) {
+    await runGuarded('Export deck failed', () =>
+      backend.quizExport(collectionId)
+    );
+  }
+
+  async function importCollection(event) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    // Match Backend.jl's MAX_QUIZ_IMPORT_BYTES limit before reading the file.
+    if (file.size > 2 * 1024 * 1024) {
+      setStorageError('Import deck failed: Quiz data is too large.');
+      return;
+    }
+    const stored = await runGuarded('Import deck failed', async () =>
+      backend.quizImport(await file.text())
+    );
+    replaceCollection(stored);
+  }
+
+  if (viewMode === 'editor') {
     return (
       <QuizEditor
         collections={collections}
@@ -621,14 +686,23 @@ export function Quiz({ mode = 'session' }) {
         onCreateQuestion={createQuestion}
         onUpdateQuestion={updateQuestion}
         onDeleteQuestion={deleteQuestion}
+        onExport={exportCollection}
+        onImport={importCollection}
+        onBack={() => setViewMode('session')}
       />
     );
   }
 
-  return <QuizSession collections={collections} storageError={storageError} />;
+  return (
+    <QuizSession
+      collections={collections}
+      storageError={storageError}
+      onEdit={() => setViewMode('editor')}
+    />
+  );
 }
 
-function QuizSession({ collections, storageError }) {
+function QuizSession({ collections, storageError, onEdit }) {
   const [collectionId, setCollectionId] = useState(
     () => collections[0]?.id || ''
   );
@@ -696,6 +770,13 @@ function QuizSession({ collections, storageError }) {
           <p className={sx('quiz-empty')}>
             No prompts here yet. Add some in the Quiz Editor.
           </p>
+          <button
+            type="button"
+            className={sx('quiz-button', 'quiz-secondary')}
+            onClick={onEdit}
+          >
+            Edit decks
+          </button>
         </div>
       </main>
     );
@@ -767,6 +848,13 @@ function QuizSession({ collections, storageError }) {
             onClick={resetSession}
           >
             Reset
+          </button>
+          <button
+            type="button"
+            className={sx('quiz-button', 'quiz-secondary')}
+            onClick={onEdit}
+          >
+            Edit decks
           </button>
         </section>
 

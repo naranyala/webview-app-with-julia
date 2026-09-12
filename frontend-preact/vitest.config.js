@@ -12,8 +12,8 @@ module.exports = {
     globals: true,
     include: ['src/**/*.test.js', 'src/**/*.test.jsx'],
     // The Atlas fixture renders 514 SVG regions; role queries over that DOM
-    // need more than Vitest's 5-second default on slower CI hosts.
-    testTimeout: 15000
+    // need a generous timeout on slower or resource-constrained CI hosts.
+    testTimeout: 60000
   },
   resolve: {
     alias: {

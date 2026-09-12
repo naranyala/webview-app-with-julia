@@ -1,9 +1,10 @@
 /**
- * Zig backend bridge.
+ * Julia backend bridge.
  *
- * Inside the native WebView each `window.*` function is bound by Zig
- * (`src/main.zig` via `src/backend/core_plugin.zig`) and returns a Promise.
- * Failures arrive in one of three shapes, all normalized by `errorDetails()`:
+ * Inside the native WebView each `window.*` function is bound by the Julia
+ * Backend module (`src/Backend.jl`) via the webview queue system and returns
+ * a Promise. Failures arrive in one of three shapes, all normalized by
+ * `errorDetails()`:
  *
  * - Structured envelope from `backend.rejectWithCode`:
  *   `{"code":"MalformedJson","message":"..."}`.
@@ -17,14 +18,33 @@
  */
 
 import { analyzeSamples, validateMirInput } from './plugins/mir.js';
-import { parseQuizCollectionList } from './schemas.js';
+import {
+  parseAssetScanJob,
+  parseAudioAnalysis,
+  parseAudioAnalysisJob,
+  parseAudioMetadata,
+  parseBackendStatus,
+  parseConversionPlan,
+  parseConversionResult,
+  parseMediaCapabilities,
+  parseMediaInfo,
+  parseMediaWriteResult,
+  parseQuizCollection,
+  parseQuizCollectionList,
+  parseStudioVolumeList,
+  parseTextPayload
+} from './schemas.js';
 
+// Five seconds is long enough for normal local filesystem work while still
+// surfacing a disconnected native bridge instead of leaving UI actions stuck.
 const DEFAULT_TIMEOUT_MS = 5000;
 const MOCK_NOTES_STORAGE_KEY = 'webview-app.chain-notes';
 const MOCK_QUIZ_STORAGE_KEY = 'webview-app.quiz-collections';
 
 let defaultTimeoutMs = DEFAULT_TIMEOUT_MS;
 let mockNotes = loadMockNotes();
+// IDs are derived from localStorage on startup so browser reloads cannot
+// reuse an existing mock record id.
 let nextMockNoteId =
   mockNotes.reduce((highest, note) => {
     const match = /^note-mock-(\d+)$/.exec(note.id || '');
@@ -56,6 +76,8 @@ function persistMockNotes() {
 }
 
 let mockQuizCollections = loadMockQuizCollections();
+// Quiz ids share one counter for collections and questions; this avoids
+// collisions when both kinds are persisted in the same mock document.
 let nextMockQuizId =
   mockQuizCollections.reduce((highest, collection) => {
     const match = /^quiz-mock-(?:col|q)-(\d+)$/.exec(collection.id || '');
@@ -182,6 +204,32 @@ function friendlyMessage(code, fallback) {
       return fallback || 'The backend request timed out.';
     case 'Unavailable':
       return fallback || 'The backend is unavailable outside the native shell.';
+    case 'PayloadTooLarge':
+      return 'The request payload is too large.';
+    case 'PathMissing':
+      return 'The requested file was not found.';
+    case 'PathNotAllowed':
+      return 'The requested path is outside the allowed workspace.';
+    case 'PathUnavailable':
+      return 'The requested path could not be resolved.';
+    case 'MediaNotFound':
+      return 'The media file was not found.';
+    case 'MediaUnsupported':
+      return 'The media format is unsupported.';
+    case 'MediaTooLarge':
+      return 'The media content is too large.';
+    case 'MediaInvalid':
+      return 'The media content is invalid.';
+    case 'MediaFailed':
+      return 'The media operation failed.';
+    case 'ConversionFailed':
+      return 'The media conversion failed.';
+    case 'BackendUnavailable':
+      return 'The requested media backend is unavailable.';
+    case 'JobLimitReached':
+      return 'Too many background jobs are active.';
+    case 'InvalidResponse':
+      return 'The backend returned an invalid response.';
     case 'StorageUnavailable':
       return 'Persistent storage is unavailable.';
     case 'StorageCorrupt':
@@ -232,6 +280,8 @@ function friendlyMessage(code, fallback) {
       return 'The PDF could not be saved.';
     case 'MirNoSamples':
       return 'No audio samples were provided.';
+    case 'InvalidAudioInput':
+      return 'The audio input is invalid.';
     case 'MirTooManySamples':
       return 'Too many audio samples for one analysis window.';
     case 'MirBadSampleRate':
@@ -252,10 +302,16 @@ function friendlyMessage(code, fallback) {
       return 'Unsupported audio format.';
     case 'AudioTooLarge':
       return 'The audio file is too large.';
+    case 'AudioJobNotFound':
+      return 'The audio analysis job was not found.';
     case 'InvalidWav':
       return 'The WAV data is invalid.';
     case 'UnsupportedWav':
       return 'The WAV format is unsupported.';
+    case 'InvalidBibTeX':
+      return 'The BibTeX document is invalid.';
+    case 'InvalidBlendFile':
+      return 'The Blender file header is invalid.';
     default:
       return fallback || code;
   }
@@ -306,6 +362,8 @@ export function backendError(error) {
 }
 
 function withTimeout(promise, name, ms) {
+  // Native calls can outlive a failed UI action. Clearing the timer in the
+  // settled promise prevents one timer per request from accumulating.
   let timer = null;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => {
@@ -332,6 +390,20 @@ function invalidArgument(message) {
   const error = new Error(message);
   error.code = 'InvalidArgument';
   return Promise.reject(error);
+}
+
+function invalidResponse(name) {
+  const error = new Error(`${name} returned an invalid response`);
+  error.code = 'InvalidResponse';
+  return error;
+}
+
+function parsedBinding(name, promise, parser) {
+  return promise.then((value) => {
+    const parsed = parser(value);
+    if (parsed === null) throw invalidResponse(name);
+    return parsed;
+  });
 }
 
 function validateNoteFields(id, title, tag, body) {
@@ -438,6 +510,10 @@ function validateFullQuestionFields(
 }
 
 function callBinding(name, ...args) {
+  // Keep all bridge selection in one place:
+  // 1. use the native window binding when hosted;
+  // 2. fail explicitly when mock mode is disabled;
+  // 3. otherwise use the browser mock for development and tests.
   let result;
   if (hasBinding(name)) {
     try {
@@ -479,6 +555,8 @@ function callBinding(name, ...args) {
       persistMockNotes();
       result = Promise.resolve(undefined);
     } else if (name === 'savePdf') {
+      result = Promise.resolve({ path: `Documents/${args[0]}` });
+    } else if (name === 'generatePdf') {
       result = Promise.resolve({ path: `Documents/${args[0]}` });
     } else if (name === 'quizList') {
       result = Promise.resolve(mockQuizCollections.map(cloneQuizCollection));
@@ -569,6 +647,36 @@ function callBinding(name, ...args) {
         persistMockQuizCollections();
         result = Promise.resolve(undefined);
       }
+    } else if (name === 'quizExport') {
+      const collection = mockQuizCollections.find(
+        (item) => item.id === args[0]
+      );
+      if (!collection) result = Promise.reject(new Error('QuizNotFound'));
+      else {
+        const data = JSON.stringify(collection);
+        result = Promise.resolve({
+          path: `Downloads/quiz-${collection.title || 'collection'}.json`,
+          size: data.length
+        });
+      }
+    } else if (name === 'quizImport') {
+      try {
+        const imported = parseQuizCollection(JSON.parse(args[0]));
+        if (!imported) throw new Error('InvalidArgument');
+        const collection = {
+          ...imported,
+          id: `quiz-mock-col-${nextMockQuizId++}`,
+          questions: imported.questions.map((question) => ({
+            ...question,
+            id: `quiz-mock-q-${nextMockQuizId++}`
+          }))
+        };
+        mockQuizCollections = [...mockQuizCollections, collection];
+        persistMockQuizCollections();
+        result = Promise.resolve(cloneQuizCollection(collection));
+      } catch (error) {
+        result = Promise.reject(error);
+      }
     } else if (name === 'mirAnalyze') {
       const [samples, sampleRate] = args;
       const invalid = validateMirInput(samples, sampleRate);
@@ -627,7 +735,19 @@ function callBinding(name, ...args) {
         });
       }
     } else if (name === 'cancelAssetScan') {
-      result = Promise.resolve('cancelled');
+      result = Promise.resolve({
+        id: args[0],
+        volumeId: 'samples',
+        state: 'cancelled',
+        progress: 0,
+        scannedFiles: 0,
+        scannedBytes: 0,
+        blender: 0,
+        audio: 0,
+        render: 0,
+        other: 0,
+        truncated: false
+      });
     } else if (name === 'getAudioMetadata') {
       const [path] = args;
       if (typeof path !== 'string' || !path.trim()) {
@@ -646,6 +766,74 @@ function callBinding(name, ...args) {
       }
     } else if (name === 'analyzeAudio') {
       result = Promise.reject(new Error('UnsupportedAudioFormat'));
+    } else if (name === 'startAudioAnalysis') {
+      result = Promise.resolve({
+        id: `audio-mock-${Date.now()}`,
+        path: args[0],
+        state: 'completed',
+        progress: 1,
+        message: 'Mock analysis',
+        format: 'wav',
+        durationSec: 0,
+        sampleRate: 0,
+        channels: 0,
+        sizeBytes: 0,
+        sampleCount: 0,
+        rms: 0,
+        peak: 0,
+        zcr: 0,
+        measured: false
+      });
+    } else if (name === 'getAudioAnalysisStatus') {
+      result = Promise.reject(new Error('AudioJobNotFound'));
+    } else if (name === 'cancelAudioAnalysis') {
+      result = Promise.reject(new Error('AudioJobNotFound'));
+    } else if (name === 'inspectMedia') {
+      result = Promise.resolve({
+        path: args[0],
+        kind: 'MarkdownText',
+        mime: 'text/markdown',
+        extension: '.md',
+        size: 0,
+        width: null,
+        height: null
+      });
+    } else if (name === 'markdownToHtml') {
+      result = Promise.resolve('<h1>Browser mock</h1>');
+    } else if (name === 'readText') {
+      result = Promise.resolve('Browser mock text');
+    } else if (name === 'writeText') {
+      result = Promise.resolve({
+        path: args[0],
+        size: String(args[1] || '').length
+      });
+    } else if (name === 'planConversion') {
+      result = Promise.resolve({
+        input: args[0],
+        output: args[1],
+        sourceKind: 'MarkdownText',
+        targetKind: 'HTMLDocument',
+        backend: 'julia',
+        requiresExternalTool: false,
+        lossiness: 'format_dependent'
+      });
+    } else if (name === 'convertMedia') {
+      result = Promise.resolve({
+        output: args[1],
+        backend: 'julia',
+        sourceKind: 'MarkdownText',
+        targetKind: 'HTMLDocument',
+        bytesWritten: 0,
+        warnings: []
+      });
+    } else if (name === 'getMediaCapabilities') {
+      result = Promise.resolve({ backend: {}, tools: {} });
+    } else if (name === 'htmlToText') {
+      result = Promise.resolve(String(args[0] || '').replace(/<[^>]+>/g, ''));
+    } else if (name === 'parseBibTeX') {
+      result = Promise.resolve([]);
+    } else if (name === 'inspectBlend') {
+      result = Promise.reject(new Error('Unavailable'));
     } else {
       result = Promise.resolve(mockValue(name));
     }
@@ -671,6 +859,8 @@ const CORE_BINDINGS = [
   'quizCreateQuestion',
   'quizUpdateQuestion',
   'quizDeleteQuestion',
+  'quizExport',
+  'quizImport',
   'mirAnalyze',
   'listVolumes',
   'startAssetScan',
@@ -678,12 +868,21 @@ const CORE_BINDINGS = [
   'cancelAssetScan',
   'getAudioMetadata',
   'analyzeAudio',
+  'startAudioAnalysis',
+  'getAudioAnalysisStatus',
+  'cancelAudioAnalysis',
+  'parseBibTeX',
+  'inspectBlend',
+  'generatePdf',
   'minimizeWindow',
   'maximizeWindow',
   'restoreWindow',
   'closeWindow'
 ];
 
+// Public adapter used by UI components. Client-side validation avoids a
+// needless bridge round-trip for obvious errors; Backend.jl repeats the
+// validation because native callers cannot be trusted.
 export const backend = {
   isNative: () => CORE_BINDINGS.every(hasBinding),
   increment: (delta) => {
@@ -695,7 +894,8 @@ export const backend = {
   reset: () => callBinding('reset'),
   getSystemInfo: () => callBinding('getSystemInfo'),
   getTimestamp: () => callBinding('getTimestamp'),
-  getStatus: () => callBinding('getStatus'),
+  getStatus: () =>
+    parsedBinding('getStatus', callBinding('getStatus'), parseBackendStatus),
   getNotes: () => callBinding('getNotes'),
   createNote: (title, tag, body) => {
     const validationError = validateNoteFields(undefined, title, tag, body);
@@ -730,7 +930,8 @@ export const backend = {
     }
     return callBinding('savePdf', filename, dataBase64);
   },
-  quizList: () => callBinding('quizList'),
+  quizList: () =>
+    parsedBinding('quizList', callBinding('quizList'), parseQuizCollectionList),
   quizCreateCollection: (title, description, tone, level) => {
     const validationError = validateCollectionFields(
       title,
@@ -818,6 +1019,25 @@ export const backend = {
     if (idError) return invalidArgument(idError);
     return callBinding('quizDeleteQuestion', collectionId, id);
   },
+  quizExport: (collectionId) => {
+    const idError = validateQuizId(collectionId);
+    return idError
+      ? invalidArgument(idError)
+      : callBinding('quizExport', collectionId);
+  },
+  quizImport: (source) => {
+    if (typeof source !== 'string' || source.length === 0) {
+      return invalidArgument('quiz JSON is required');
+    }
+    if (source.length > 2 * 1024 * 1024) {
+      return invalidArgument('quiz JSON is too large');
+    }
+    return parsedBinding(
+      'quizImport',
+      callBinding('quizImport', source),
+      parseQuizCollection
+    );
+  },
   mirAnalyze: (samples, sampleRate) => {
     const invalid =
       validateMirInput(samples, sampleRate) ||
@@ -826,27 +1046,161 @@ export const backend = {
       ? invalidArgument(invalid)
       : callBinding('mirAnalyze', [...samples], sampleRate);
   },
-  listVolumes: () => callBinding('listVolumes'),
+  listVolumes: () =>
+    parsedBinding(
+      'listVolumes',
+      callBinding('listVolumes'),
+      parseStudioVolumeList
+    ),
   startAssetScan: (volumeId) =>
     typeof volumeId !== 'string' || !volumeId.trim()
       ? invalidArgument('scan volume id is required')
-      : callBinding('startAssetScan', volumeId),
+      : parsedBinding(
+          'startAssetScan',
+          callBinding('startAssetScan', volumeId),
+          parseAssetScanJob
+        ),
   getAssetScanStatus: (jobId) =>
     typeof jobId !== 'string' || !jobId
       ? invalidArgument('scan job id is required')
-      : callBinding('getAssetScanStatus', jobId),
+      : parsedBinding(
+          'getAssetScanStatus',
+          callBinding('getAssetScanStatus', jobId),
+          parseAssetScanJob
+        ),
   cancelAssetScan: (jobId) =>
     typeof jobId !== 'string' || !jobId
       ? invalidArgument('scan job id is required')
-      : callBinding('cancelAssetScan', jobId),
+      : parsedBinding(
+          'cancelAssetScan',
+          callBinding('cancelAssetScan', jobId),
+          parseAssetScanJob
+        ),
   getAudioMetadata: (path) =>
     typeof path !== 'string' || !path.trim()
       ? invalidArgument('audio path is required')
-      : callBinding('getAudioMetadata', path),
+      : parsedBinding(
+          'getAudioMetadata',
+          callBinding('getAudioMetadata', path),
+          parseAudioMetadata
+        ),
   analyzeAudio: (path) =>
     typeof path !== 'string' || !path.trim()
       ? invalidArgument('audio path is required')
-      : callBinding('analyzeAudio', path),
+      : parsedBinding(
+          'analyzeAudio',
+          callBinding('analyzeAudio', path),
+          parseAudioAnalysis
+        ),
+  startAudioAnalysis: (path) =>
+    typeof path !== 'string' || !path.trim()
+      ? invalidArgument('audio path is required')
+      : parsedBinding(
+          'startAudioAnalysis',
+          callBinding('startAudioAnalysis', path),
+          parseAudioAnalysisJob
+        ),
+  getAudioAnalysisStatus: (jobId) =>
+    typeof jobId !== 'string' || !jobId
+      ? invalidArgument('audio job id is required')
+      : parsedBinding(
+          'getAudioAnalysisStatus',
+          callBinding('getAudioAnalysisStatus', jobId),
+          parseAudioAnalysisJob
+        ),
+  cancelAudioAnalysis: (jobId) =>
+    typeof jobId !== 'string' || !jobId
+      ? invalidArgument('audio job id is required')
+      : parsedBinding(
+          'cancelAudioAnalysis',
+          callBinding('cancelAudioAnalysis', jobId),
+          parseAudioAnalysisJob
+        ),
+  // Optional StaticMediaCompanion feature bindings. They are intentionally
+  // outside CORE_BINDINGS so existing browser/native detection remains stable.
+  inspectMedia: (path) =>
+    typeof path !== 'string' || !path.trim()
+      ? invalidArgument('media path is required')
+      : parsedBinding(
+          'inspectMedia',
+          callBinding('inspectMedia', path),
+          parseMediaInfo
+        ),
+  markdownToHtml: (content) =>
+    typeof content !== 'string' || !content
+      ? invalidArgument('Markdown content is required')
+      : parsedBinding(
+          'markdownToHtml',
+          callBinding('markdownToHtml', content),
+          parseTextPayload
+        ),
+  readText: (path) =>
+    typeof path !== 'string' || !path.trim()
+      ? invalidArgument('text path is required')
+      : parsedBinding(
+          'readText',
+          callBinding('readText', path),
+          parseTextPayload
+        ),
+  writeText: (path, content) =>
+    typeof path !== 'string' || !path.trim() || typeof content !== 'string'
+      ? invalidArgument('text path or content is invalid')
+      : parsedBinding(
+          'writeText',
+          callBinding('writeText', path, content),
+          parseMediaWriteResult
+        ),
+  planConversion: (input, output) =>
+    typeof input !== 'string' ||
+    !input.trim() ||
+    typeof output !== 'string' ||
+    !output.trim()
+      ? invalidArgument('conversion input or output is invalid')
+      : parsedBinding(
+          'planConversion',
+          callBinding('planConversion', input, output),
+          parseConversionPlan
+        ),
+  convertMedia: (input, output) =>
+    typeof input !== 'string' ||
+    !input.trim() ||
+    typeof output !== 'string' ||
+    !output.trim()
+      ? invalidArgument('conversion input or output is invalid')
+      : parsedBinding(
+          'convertMedia',
+          callBinding('convertMedia', input, output),
+          parseConversionResult
+        ),
+  getMediaCapabilities: () =>
+    parsedBinding(
+      'getMediaCapabilities',
+      callBinding('getMediaCapabilities'),
+      parseMediaCapabilities
+    ),
+  htmlToText: (html) =>
+    typeof html !== 'string'
+      ? invalidArgument('HTML content must be text')
+      : parsedBinding(
+          'htmlToText',
+          callBinding('htmlToText', html),
+          parseTextPayload
+        ),
+  parseBibTeX: (source) =>
+    typeof source !== 'string' || !source.trim()
+      ? invalidArgument('BibTeX source is required')
+      : callBinding('parseBibTeX', source),
+  inspectBlend: (path) =>
+    typeof path !== 'string' || !path.trim()
+      ? invalidArgument('blend path is required')
+      : callBinding('inspectBlend', path),
+  generatePdf: (filename, title, body) =>
+    typeof filename !== 'string' ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}\.pdf$/.test(filename) ||
+    typeof title !== 'string' ||
+    typeof body !== 'string'
+      ? invalidArgument('PDF filename, title, or body is invalid')
+      : callBinding('generatePdf', filename, title, body),
   minimizeWindow: () => callBinding('minimizeWindow'),
   maximizeWindow: () => callBinding('maximizeWindow'),
   restoreWindow: () => callBinding('restoreWindow'),

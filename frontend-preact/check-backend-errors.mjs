@@ -1,6 +1,6 @@
 // Bridge error-handling tests: normalization, timeouts, client-side
 // validation, and mock/unavailable behavior in `src/backend.js`.
-// Run: `npm test`. `zig build test` runs it via `npm run test`.
+// Run: `npm test`.
 import {
   backend,
   backendError,
@@ -34,7 +34,7 @@ function withWindow(stub, fn) {
 // 1. Mock fallbacks when no bindings exist.
 await withWindow({}, async () => {
   check('mock increment resolves 0', (await backend.increment(1)) === 0);
-  check('mock getStatus resolves ok', (await backend.getStatus()) === 'ok');
+  check('mock getStatus resolves ok', (await backend.getStatus()).status === 'ok');
   const note = await backend.createNote('Mock note', 'Test', 'Body');
   check('mock create note returns an id', note.id.startsWith('note-mock-'));
   check('mock list returns created note', (await backend.getNotes()).length === 1);
@@ -42,6 +42,15 @@ await withWindow({}, async () => {
   check('mock update note changes title', updated.title === 'Updated mock note');
   await backend.deleteNote(note.id);
   check('mock delete note removes note', (await backend.getNotes()).length === 0);
+});
+
+// Optional StaticMediaCompanion bindings use browser-safe mocks without
+// changing the 36-binding native capability check.
+await withWindow({}, async () => {
+  check('mock media inspection parses', (await backend.inspectMedia('demo.md')).mime === 'text/markdown');
+  check('mock markdown rendering returns text', (await backend.markdownToHtml('# Demo')).includes('<h1>'));
+  check('mock media plan parses', (await backend.planConversion('a.md', 'a.html')).backend === 'julia');
+  check('mock media capabilities parse', (await backend.getMediaCapabilities()).tools !== undefined);
 });
 
 // 2. Native values pass through with args forwarded.
@@ -52,7 +61,7 @@ await withWindow(
   },
   async () => {
     check('native increment forwards args', (await backend.increment(21)) === 42);
-    check('native getStatus passes through', (await backend.getStatus()) === 'ok');
+    check('native getStatus passes through', (await backend.getStatus()).status === 'ok');
   }
 );
 
@@ -156,6 +165,11 @@ check(
   errorDetails(new Error('{"code":"StorageWriteFailed"}')).message ===
     'The note could not be saved.'
 );
+check(
+  'media errors have friendly messages',
+  errorDetails(new Error('{"code":"ConversionFailed"}')).message ===
+    'The media conversion failed.'
+);
 
 // 9. savePdf validates locally and resolves a path through the mock.
 await withWindow({}, async () => {
@@ -179,6 +193,24 @@ check(
   errorDetails(new Error('{"code":"PdfWriteFailed"}')).message ===
     'The PDF could not be saved.'
 );
+
+await withWindow({}, async () => {
+  check(
+    'mock BibTeX parsing returns an empty list',
+    (await backend.parseBibTeX('@article{demo}')).length === 0
+  );
+  check(
+    'mock PDF generation returns a path',
+    (await backend.generatePdf('demo.pdf', 'Title', 'Body')).path ===
+      'Documents/demo.pdf'
+  );
+  try {
+    await backend.inspectBlend('/tmp/demo.blend');
+    check('mock Blender inspection is unavailable', false);
+  } catch (error) {
+    check('mock Blender inspection is unavailable', errorDetails(error).code === 'Unavailable');
+  }
+});
 
 // 10. quiz CRUD round-trips through the mock store.
 await withWindow({}, async () => {
@@ -222,12 +254,24 @@ await withWindow({}, async () => {
     edited.answer === 'A systems programming language.' &&
       edited.tags.length === 2
   );
+  const exported = await backend.quizExport(collection.id);
+  check('mock quiz export returns a path', exported.path.includes('quiz-'));
+  const imported = await backend.quizImport(
+    JSON.stringify({
+      id: 'old-id',
+      title: 'Imported deck',
+      description: 'Imported',
+      questions: [{ id: 'old-q', question: 'Prompt', answer: 'Answer' }]
+    })
+  );
+  check('mock quiz import assigns a fresh id', imported.id !== 'old-id');
   await backend.quizDeleteQuestion(collection.id, question.id);
   check(
     'mock quiz question deletes',
     (await backend.quizList())[0].questions.length === 0
   );
   await backend.quizDeleteCollection(collection.id);
+  await backend.quizDeleteCollection(imported.id);
   check('mock quiz deck deletes', (await backend.quizList()).length === 0);
   try {
     await backend.quizUpdateCollection('missing', 'T', 'D');

@@ -4,12 +4,27 @@ version = "0.1.0"
 authors = ["Your Name <you@example.com>"]
 
 [deps]
+Aural = "e8479a5c-c6f7-4092-bed7-8bd56c46a99d"
+Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+LinuxCompanion = "d4f1a0f8-7f43-4e70-a42b-9a4d4f9fb0e2"
+StaticMediaCompanion = "e91f1a4a-b4d4-4f5e-9a0f-1c5cdd08f61a"
 
 [compat]
+Aural = "0.1"
+Base64 = "1.11.0"
+Dates = "1.11.0"
 JSON3 = "1.14.3"
+LinuxCompanion = "0.1"
+StaticMediaCompanion = "0.1"
 julia = "1.10"
+
+[sources]
+Aural = {path = "../Aural.jl"}
+LinuxCompanion = {path = "../LinuxCompanion.jl"}
+StaticMediaCompanion = {path = "../StaticMediaCompanion.jl"}
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

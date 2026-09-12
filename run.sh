@@ -141,4 +141,8 @@ else
     info "Launching GUI..."
 fi
 
-exec julia --project="$ROOT_DIR" "$JULIA_ENTRY"
+if [[ -n "${JULIA_NUM_THREADS:-}" ]]; then
+    exec julia --project="$ROOT_DIR" "$JULIA_ENTRY"
+else
+    exec julia --threads=auto --project="$ROOT_DIR" "$JULIA_ENTRY"
+fi

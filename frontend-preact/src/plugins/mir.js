@@ -1,3 +1,5 @@
+// Keep browser-side validation/windowing aligned with AudioAnalysisAdapter.jl.
+// 262,144 (2^18) bounds bridge payloads and is FFT-friendly for future profiles.
 export const MIR_MAX_SAMPLES = 262144;
 export const MIR_MAX_SAMPLE_RATE = 192000;
 
@@ -60,6 +62,8 @@ export function analyzeSamples(samples, sampleRate) {
 }
 
 export function describeFeatures(features) {
+  // These are presentation heuristics, not calibrated loudness standards:
+  // RMS and ZCR classify a quick preview as a useful human-readable hint.
   const loudness =
     features.rms < 0.02
       ? 'near silence'
@@ -77,7 +81,8 @@ export function describeFeatures(features) {
   return `${loudness}; ${brightness}`;
 }
 
-/// Downsample a long mono buffer to the native window by even stride.
+// Downsample by stride instead of interpolation so the native analysis sees
+// original sample values while keeping the cross-language payload bounded.
 export function windowSamples(samples, max = MIR_MAX_SAMPLES) {
   if (samples.length <= max) return [...samples];
   const stride = Math.ceil(samples.length / max);
@@ -136,5 +141,6 @@ export function mixSimilarity(a, b) {
   if (!a || !b) return 0;
   const tempoDistance = Math.abs(a.tempo - b.tempo) / 40;
   const keyMatch = a.key === b.key ? 0 : 1;
+  // Heuristic weighting: tempo contributes 70%, key compatibility 30%.
   return Math.max(0, 1 - (tempoDistance * 0.7 + keyMatch * 0.3));
 }

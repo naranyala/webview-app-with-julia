@@ -14,3 +14,8 @@ using JuliaStarter
     @test occursin("<title>WebView App</title>", frontend_html())
     @test occursin("<div id=\"app\"></div>", frontend_html())
 end
+
+include("backend.jl")
+include("modules.jl")
+include("jobs.jl")
+include("persistence.jl")

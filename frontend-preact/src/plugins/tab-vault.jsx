@@ -56,7 +56,8 @@ function previewValue(data, maxLen = 60) {
     const s = data.length > maxLen ? `${data.slice(0, maxLen)}…` : data;
     return `"${s}"`;
   }
-  if (typeof data === 'number' || typeof data === 'boolean') return String(data);
+  if (typeof data === 'number' || typeof data === 'boolean')
+    return String(data);
   if (Array.isArray(data)) return `[${data.length} items]`;
   if (typeof data === 'object') return `{${Object.keys(data).length} keys}`;
   return String(data);
@@ -92,14 +93,13 @@ function JsonNode({ keyName, value, depth, path, onEdit, renamedPath }) {
   }, [value, isObject, isArray]);
 
   const displayKey =
-    renamedPath && renamedPath === path ? renamedPath.split('.').pop() : keyName;
+    renamedPath && renamedPath === path
+      ? renamedPath.split('.').pop()
+      : keyName;
 
   return (
     <div className="jv-node">
-      <div
-        className="jv-row"
-        style={{ paddingLeft: `${depth * 16}px` }}
-      >
+      <div className="jv-row" style={{ paddingLeft: `${depth * 16}px` }}>
         {isExpandable ? (
           <button
             type="button"
@@ -203,10 +203,18 @@ function EditModal({ path, value, onSave, onCancel }) {
         />
         {error && <p className="jv-modal-error">{error}</p>}
         <div className="jv-modal-actions">
-          <button type="button" className="jv-btn jv-btn-secondary" onClick={onCancel}>
+          <button
+            type="button"
+            className="jv-btn jv-btn-secondary"
+            onClick={onCancel}
+          >
             Cancel
           </button>
-          <button type="button" className="jv-btn jv-btn-primary" onClick={handleSave}>
+          <button
+            type="button"
+            className="jv-btn jv-btn-primary"
+            onClick={handleSave}
+          >
             Save
           </button>
         </div>
@@ -235,8 +243,7 @@ export function TabVault() {
     const q = query.trim().toLowerCase();
     return vaults.filter(
       (v) =>
-        v.name.toLowerCase().includes(q) ||
-        v.fileName.toLowerCase().includes(q)
+        v.name.toLowerCase().includes(q) || v.fileName.toLowerCase().includes(q)
     );
   }, [vaults, query]);
 
@@ -286,7 +293,8 @@ export function TabVault() {
     if (!text) return;
     try {
       const data = JSON.parse(text);
-      const name = prompt('Name for this vault:', 'Pasted JSON') || 'Pasted JSON';
+      const name =
+        prompt('Name for this vault:', 'Pasted JSON') || 'Pasted JSON';
       importJson(name, 'clipboard.json', data);
       setImportError('');
     } catch {
@@ -331,12 +339,15 @@ export function TabVault() {
   }
 
   function exportAll() {
-    downloadJson('tab-vault-export.json', vaults.map((v) => ({
-      name: v.name,
-      fileName: v.fileName,
-      createdAt: v.createdAt,
-      data: v.data
-    })));
+    downloadJson(
+      'tab-vault-export.json',
+      vaults.map((v) => ({
+        name: v.name,
+        fileName: v.fileName,
+        createdAt: v.createdAt,
+        data: v.data
+      }))
+    );
   }
 
   // ─── List View ───────────────────────────────────────────────────────────
@@ -447,9 +458,9 @@ export function TabVault() {
                   </span>
                   <strong className={sx('note-title')}>{vault.name}</strong>
                   <span className={sx('note-body')}>
-                    {vault.fileName} · {formatBytes(
-                      new Blob([JSON.stringify(vault.data)]).size
-                    )} · {countKeys(vault.data)} keys
+                    {vault.fileName} ·{' '}
+                    {formatBytes(new Blob([JSON.stringify(vault.data)]).size)} ·{' '}
+                    {countKeys(vault.data)} keys
                   </span>
                 </button>
               ))}
@@ -482,9 +493,7 @@ export function TabVault() {
             {new Date(selected.updatedAt).toLocaleString()}
           </p>
         </div>
-        <span className={sx('badge')}>
-          {countKeys(selected.data)} keys
-        </span>
+        <span className={sx('badge')}>{countKeys(selected.data)} keys</span>
       </div>
 
       <div className={sx('tool-panel')}>
@@ -541,7 +550,8 @@ export function TabVault() {
               className={sx('text-button')}
               style={{ color: '#f87171' }}
               onClick={() => {
-                if (confirm(`Delete "${selected.name}"?`)) deleteVault(selected.id);
+                if (confirm(`Delete "${selected.name}"?`))
+                  deleteVault(selected.id);
               }}
             >
               Delete
@@ -559,20 +569,16 @@ export function TabVault() {
               depth={0}
               path="$"
               onEdit={(path) => {
-                const value = path
-                  .split('.')
-                  .reduce((o, k) => {
-                    const n = Number(k);
-                    return o?.[Number.isNaN(n) ? k : n];
-                  }, selected.data);
+                const value = path.split('.').reduce((o, k) => {
+                  const n = Number(k);
+                  return o?.[Number.isNaN(n) ? k : n];
+                }, selected.data);
                 setEditTarget({ path, value });
               }}
             />
           </div>
         ) : (
-          <pre className="jv-raw">
-            {JSON.stringify(selected.data, null, 2)}
-          </pre>
+          <pre className="jv-raw">{JSON.stringify(selected.data, null, 2)}</pre>
         )}
       </div>
     </section>

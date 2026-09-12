@@ -8,9 +8,8 @@ The package test target is:
 julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
-It covers greetings, Fibonacci validation/calculation, and the presence of the
-built frontend HTML. In this checkout the test body passes 11 tests when run
-directly with:
+It covers greetings, Fibonacci validation/calculation, the built frontend HTML,
+the Julia backend, and the Aural audio adapter. The direct diagnostic form is:
 
 ```sh
 julia --project=. -e 'using Test; include("test/runtests.jl")'
@@ -61,17 +60,6 @@ npm --prefix frontend-preact run map:check
 The validator expects 38 provinces, 514 administrative geometries, five
 excluded non-administrative features, the pinned source revision, closed rings,
 and coordinates within the Indonesia bounds used by the project.
-
-## Known verification gaps
-
-The following are repository-state issues rather than test-suite failures:
-
-- `npm run check` currently reports Biome formatting changes in
-  `src/plugins/tab-vault.jsx` and the already-modified StyleX files.
-- `npm run check:bindings` currently fails because
-  `src/backend/core_plugin.zig` is not present.
-- `npm run build` runs both checks before bundling, so a clean production build
-  is blocked until those two issues are resolved.
 
 Keep generated files out of hand-edited source changes. After a successful
 frontend build, confirm that `frontend-preact/dist/index.html` exists before

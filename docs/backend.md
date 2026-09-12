@@ -6,6 +6,7 @@
 does not depend on a Julia WebView package. The exported surface includes:
 
 - window lifecycle: `create`, `destroy!`, `run!`, `is_open`, `terminate!`;
+- GTK actions: `minimize!`, `maximize!`, `restore!`, `close!`;
 - window content: `html!`, `init!`, `eval!`, `set_title!`, `set_size!`;
 - event loop: `pump!`;
 - bridge queue: `create_queue`, `destroy_queue!`, `bind_queue!`, `next!`;
@@ -18,13 +19,16 @@ in [Getting started](getting-started.md).
 
 ## Current Julia bindings
 
-`bin/webview_app.jl` currently registers three names:
+`bin/webview_app.jl` registers the frontend contract on the queue:
 
 | Binding | Behavior |
 | --- | --- |
-| `calculateFibonacci` | Reads one JSON argument, validates `0 <= n <= 50`, and returns `{ "input": n, "result": fibonacci(n) }`. |
-| `closeWindow` | Returns `null` and ends the Julia pump loop. |
-| `closeApp` | Same shutdown path as `closeWindow`. |
+| Diagnostics | Counter, reset, status, system information, and timestamp. |
+| Notes and quizzes | Persistent note CRUD, quiz collection/question CRUD, validated JSON import/export, and PDF export. |
+| MIR/audio | Bounded sample analysis plus Aural-backed WAV metadata and file analysis jobs. |
+| Assets | Volume discovery and cancellable bounded scans. |
+| Documents | BibTeX parsing, Blender header inspection, and native PDF generation. |
+| Window actions | Minimize, maximize, restore, and close queue bindings. |
 
 Errors in the request loop are returned with status `1` and a JSON-encoded
 error message. Each request is closed in a `finally` block.
@@ -46,9 +50,10 @@ The modeled contract includes these groups:
 | --- | --- |
 | Diagnostics | `increment`, `reset`, `getSystemInfo`, `getTimestamp`, `getStatus` |
 | Notes and exports | `getNotes`, `createNote`, `updateNote`, `deleteNote`, `savePdf` |
-| Quiz storage | `quizList`, collection CRUD, question CRUD |
+| Quiz storage | `quizList`, collection CRUD, question CRUD, `quizImport`, `quizExport` |
 | MIR | `mirAnalyze` |
 | Studio assets | `listVolumes`, `startAssetScan`, `getAssetScanStatus`, `cancelAssetScan`, `getAudioMetadata`, `analyzeAudio` |
+| Audio jobs | `startAudioAnalysis`, `getAudioAnalysisStatus`, `cancelAudioAnalysis` |
 | Window actions | `minimizeWindow`, `maximizeWindow`, `restoreWindow`, `closeWindow` |
 
 In browser/mock mode, notes and quiz data are kept in local storage when it is
@@ -66,20 +71,24 @@ asset and audio calls use deterministic mock responses or mock errors.
 The UI should switch on `code` and display `message`. `backendError()` is the
 short display-only helper; `backendErrorWithCode()` is useful for diagnostics.
 
-## Contract gap in this checkout
+## Jobs and persistence
 
-`frontend-preact/src/bindings.d.ts`, `backend.js`, and `check-bindings.cjs`
-describe a larger Zig backend contract. The files referenced by the checker—
-`src/backend/core_plugin.zig` and the related Zig backend tree—are absent from
-the current repository. Consequently:
+`src/Jobs.jl` owns cooperative background job state. Asset scans and full-file
+audio analysis report `running`, `completed`, `failed`, or `cancelled` snapshots;
+workers must check cancellation between units of work. Terminal jobs are bounded
+by age and count.
 
-- the frontend's full `isNative()` check cannot become true with the current
-  launcher;
-- `npm run check:bindings` fails with a missing-file error; and
-- the current native executable should be understood as a Julia/WebView
-  Fibonacci bridge plus mock-capable frontend shell, not as the full modeled
-  backend.
+`src/Persistence.jl` stores notes and quizzes in versioned JSON envelopes. It
+still reads the earlier raw-array format, limits serialized size, writes through
+a same-directory temporary file, and raises typed errors for corrupt,
+unavailable, unsupported, or oversized data. Backend mutations persist a
+candidate copy before replacing in-memory state.
 
-When implementing the missing backend, keep the names and payload shapes in
-`bindings.d.ts` and `backend.js` aligned, then restore the binding check before
-claiming full native mode.
+Read-only audio and Blender paths are canonicalized and must resolve beneath the
+home directory or a discovered volume root. Quiz import accepts validated JSON
+content rather than an arbitrary native path; exports are confined to
+`~/Documents/`.
+
+`frontend-preact/src/bindings.d.ts`, `backend.js`, and `check-bindings.cjs` are
+kept aligned with `bin/webview_app.jl`; `npm run check:bindings` verifies all
+registered names. Browser mode remains available through the adapter's mocks.

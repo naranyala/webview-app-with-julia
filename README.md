@@ -8,7 +8,7 @@ browser with mock backend behavior.
 
 ## Current status
 
-The active launcher exposes six frontend tools:
+The active launcher exposes ten frontend tools:
 
 - Sample Library
 - Monitor EQ
@@ -16,17 +16,15 @@ The active launcher exposes six frontend tools:
 - MIR Papers
 - MIR Lab
 - Indonesia Map
+- Chain Notes
+- Quiz
+- Blender Companion
+- Todos
 
-Chain Notes, Quiz, Todos, and Blender Companion components are present under
-`frontend-preact/src/plugins/` but are not currently registered in the active
-shell.
-
-The native Julia entry point currently implements the small WebView bridge used
-by the legacy Fibonacci example: `calculateFibonacci`, `closeWindow`, and
-`closeApp`. The frontend adapter contains a broader modeled backend contract
-and falls back to mocks when those bindings are unavailable. The Zig backend
-tree referenced by the binding checker is not included in this checkout, so
-the full frontend contract is not yet native-backed.
+The native Julia entry point routes the frontend backend contract through the
+queue bridge. The frontend adapter falls back to browser-safe mocks when those
+bindings are unavailable. Audio/MIR file work uses the app-owned adapter around
+the local Aural.jl dependency.
 
 For the detailed repository guide, see [`docs/README.md`](docs/README.md).
 
@@ -111,11 +109,8 @@ The Julia tests cover the application logic and built HTML. The frontend suite
 covers backend errors, schemas, Markdown, Q&A, paper/citation logic, MIR math,
 asset helpers, map data, autosave, search, PDF output, and Preact components.
 
-Current repository-state caveats are documented in
-[`docs/testing.md`](docs/testing.md): the formatter reports existing changes in
-`tab-vault.jsx` and StyleX files, and the binding checker references the absent
-`src/backend/core_plugin.zig` tree. Since `npm run build` runs those checks
-first, resolve them before relying on a clean production build from scratch.
+The repository-state checks are documented in [`docs/testing.md`](docs/testing.md).
+`npm run build` runs formatting and binding checks before producing the bundle.
 
 ## Runtime overrides
 

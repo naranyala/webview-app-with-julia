@@ -1,15 +1,31 @@
+"""
+    ManualWebview
+
+Julia wrapper around two native libraries:
+  - `libwebview.so` — the cross-platform webview C API (window, HTML, eval, return)
+  - `libjulia_webview_bridge.so` — our C++ bridge that queues frontend binding
+    calls into a thread-safe deque for Julia to consume
+
+The two-library split keeps the upstream webview API unmodified while adding
+the request-queue and window-action extensions the app needs. Both libraries
+are loaded at runtime via `dlopen`; neither is linked at compile time.
+"""
 module ManualWebview
 
 using Libdl
 
-export Queue, Request, Window, bind_queue!, create, create_queue, destroy!, destroy_queue!, eval!, html!, init!, is_open, next!, pump!, request_id, request_name, request_payload, return!, run!, set_size!, set_title!, terminate!
+export Queue, Request, Window, bind_queue!, close!, create, create_queue, destroy!, destroy_queue!, eval!, html!, init!, is_open, maximize!, minimize!, next!, pump!, request_id, request_name, request_payload, restore!, return!, run!, set_size!, set_title!, terminate!
 
+# Library paths. Override via environment variables for custom builds.
 const DEFAULT_LIBRARY = joinpath(dirname(@__DIR__), "native", "lib", "libwebview.so")
 const DEFAULT_BRIDGE_LIBRARY = joinpath(dirname(@__DIR__), "native", "lib", "libjulia_webview_bridge.so")
 const LIBRARY = get(ENV, "JULIA_WEBVIEW_LIBRARY", DEFAULT_LIBRARY)
 const BRIDGE_LIBRARY = get(ENV, "JULIA_WEBVIEW_BRIDGE_LIBRARY", DEFAULT_BRIDGE_LIBRARY)
 const GLIB_LIBRARY = "libglib-2.0.so.0"
 
+# Window and Queue own Ptr{Cvoid} handles with finalizers for GC integration.
+# Request is short-lived (created per-request, destroyed after return) and
+# does not need a finalizer.
 mutable struct Window
     handle::Ptr{Cvoid}
 end
@@ -22,6 +38,9 @@ struct Request
     handle::Ptr{Cvoid}
 end
 
+# Preflight: verify both native libraries are loadable before any ccall.
+# This catches missing .so files early with a clear error instead of a
+# segfault deep in a ccall.
 function ensure_library()
     for (library, label) in ((LIBRARY, "webview"), (BRIDGE_LIBRARY, "binding bridge"))
         handle = Libdl.dlopen_e(library)
@@ -40,6 +59,13 @@ function check(code::Cint, operation::AbstractString)
     nothing
 end
 
+"""
+    create(; debug=false) -> Window
+
+Create a native webview window. The returned Window has a GC finalizer that
+calls `destroy!` when the object is collected — but callers should still
+call `destroy!` explicitly to free the GTK resources deterministically.
+"""
 function create(; debug::Bool=false)
     ensure_library()
     handle = ccall(
@@ -94,7 +120,45 @@ function terminate!(window::Window)
     nothing
 end
 
+function _window_action_minimize(window::Window)
+    code = ccall((:julia_webview_window_minimize, BRIDGE_LIBRARY), Cint, (Ptr{Cvoid},), window.handle)
+    check(code, "window action minimize")
+    window
+end
+
+function _window_action_maximize(window::Window)
+    code = ccall((:julia_webview_window_maximize, BRIDGE_LIBRARY), Cint, (Ptr{Cvoid},), window.handle)
+    check(code, "window action maximize")
+    window
+end
+
+function _window_action_restore(window::Window)
+    code = ccall((:julia_webview_window_restore, BRIDGE_LIBRARY), Cint, (Ptr{Cvoid},), window.handle)
+    check(code, "window action restore")
+    window
+end
+
+function _window_action_close(window::Window)
+    code = ccall((:julia_webview_window_close, BRIDGE_LIBRARY), Cint, (Ptr{Cvoid},), window.handle)
+    check(code, "window action close")
+    window
+end
+
+minimize!(window::Window) = _window_action_minimize(window)
+maximize!(window::Window) = _window_action_maximize(window)
+restore!(window::Window) = _window_action_restore(window)
+close!(window::Window) = _window_action_close(window)
+
+"""
+    pump!()
+
+Process any pending GTK/GLib events without blocking. This is the non-blocking
+GLib main context iteration that keeps the window responsive. Called in the
+application's main loop; the main loop owns the sleep/poll cadence.
+"""
 function pump!()
+    # g_main_context_iteration(C_NULL, 0) processes pending events on the
+    # default GLib main context. The second arg `0` means non-blocking.
     return ccall((:g_main_context_iteration, GLIB_LIBRARY), Cint, (Ptr{Cvoid}, Cint), C_NULL, 0)
 end
 
@@ -145,6 +209,13 @@ function eval!(window::Window, javascript::AbstractString)
     window
 end
 
+"""
+    bind_queue!(window, queue, name)
+
+Register a frontend binding `name` so that calling `window.name()` in JavaScript
+queues a request into `queue` for Julia to process. The binding callback runs
+on the GTK thread; Julia drains the queue on its own thread via `next!`.
+"""
 function bind_queue!(window::Window, queue::Queue, name::AbstractString)
     check(
         ccall(

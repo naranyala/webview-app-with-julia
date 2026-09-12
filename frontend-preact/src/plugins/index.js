@@ -1,10 +1,14 @@
 import { AcademicPaper } from './academic-paper.jsx';
 import { AudioEqualizer } from './audio-equalizer.jsx';
+import { BlenderCompanion } from './blender-companion.jsx';
+import { ChainNotes } from './chain-notes.jsx';
 import { defineFrontendPlugin } from './contract.js';
 import { DiskScanner } from './disk-scanner.jsx';
 import { IndonesiaMap } from './indonesia-map.jsx';
 import { MirLab } from './mir-lab.jsx';
+import { Quiz } from './quiz.jsx';
 import { TabVault } from './tab-vault.jsx';
+import { TodoApp } from './todo.jsx';
 
 export {
   getIndonesiaRegion,
@@ -75,13 +79,58 @@ export const indonesiaMapPlugin = defineFrontendPlugin({
   component: IndonesiaMap
 });
 
+export const chainNotesPlugin = defineFrontendPlugin({
+  id: 'notes',
+  index: '10',
+  title: 'Chain Notes',
+  description: 'Persistent notes with tagging, search, and PDF export.',
+  tone: 'purple',
+  symbol: 'NOTE',
+  component: ChainNotes
+});
+
+export const quizPlugin = defineFrontendPlugin({
+  id: 'quiz',
+  index: '11',
+  title: 'Quiz',
+  description: 'Create, study, and review flashcard collections.',
+  tone: 'gold',
+  symbol: 'QUIZ',
+  component: Quiz
+});
+
+export const blenderCompanionPlugin = defineFrontendPlugin({
+  id: 'blender',
+  index: '12',
+  title: 'Blender Companion',
+  description:
+    'Scene logging, render notes, and pipeline tracking for Blender.',
+  tone: 'orange',
+  symbol: 'BLEND',
+  component: BlenderCompanion
+});
+
+export const todoPlugin = defineFrontendPlugin({
+  id: 'todo',
+  index: '13',
+  title: 'Todos',
+  description: 'Task planner with due dates, priorities, and calendar view.',
+  tone: 'teal',
+  symbol: 'TASK',
+  component: TodoApp
+});
+
 const registeredPlugins = [
   diskScannerPlugin,
   audioEqualizerPlugin,
   tabVaultPlugin,
   academicPaperPlugin,
   mirLabPlugin,
-  indonesiaMapPlugin
+  indonesiaMapPlugin,
+  chainNotesPlugin,
+  quizPlugin,
+  blenderCompanionPlugin,
+  todoPlugin
 ];
 const pluginIds = new Set();
 

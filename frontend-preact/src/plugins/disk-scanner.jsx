@@ -4,7 +4,7 @@ import { sx } from '../stylex-styles.js';
 
 // Sample Library scanner: native bounded scan when hosted, timer mock in the
 // browser. Native results carry blender/audio/render/other counts from
-// `src/backend/studio.zig`; the mock preserves the previous demo behavior.
+// `src/Backend.jl`; the mock preserves the previous demo behavior.
 const mockVolumes = [
   { id: 'main', name: 'Main drive', path: '/', kind: 'disk' },
   { id: 'archive', name: 'Archive', path: '/mnt/archive', kind: 'disk' },
@@ -31,13 +31,19 @@ function formatBytes(bytes) {
 }
 
 export function DiskScanner() {
+  // Native lifecycle: idle → scanning → complete/cancelled (or idle on
+  // failure). The mock path uses the same visible states without a backend job.
   const [volumes, setVolumes] = useState(mockVolumes);
   const [selectedVolumeId, setSelectedVolumeId] = useState('main');
   const [diskScanState, setDiskScanState] = useState('idle');
   const [diskScanProgress, setDiskScanProgress] = useState(0);
   const [summary, setSummary] = useState(null);
   const [scanError, setScanError] = useState('');
+  const [topFolders, setTopFolders] = useState([]);
   const timerRef = useRef(null);
+  const pollRef = useRef(null);
+  const activeJobRef = useRef(null);
+  const unmountedRef = useRef(false);
   const native = backend.isNative();
   const selectedVolume = volumes.find(
     (volume) => volume.id === selectedVolumeId
@@ -61,22 +67,69 @@ export function DiskScanner() {
     }
     return () => {
       cancelled = true;
+      unmountedRef.current = true;
       if (timerRef.current) clearInterval(timerRef.current);
+      if (pollRef.current) clearTimeout(pollRef.current);
     };
   }, []);
 
+  function applyNativeJob(job) {
+    setSummary(job);
+    setDiskScanProgress(Math.round((job.progress || 0) * 100));
+    if (job.topFolders?.length) setTopFolders(job.topFolders);
+    if (job.state === 'completed') setDiskScanState('complete');
+    else if (job.state === 'cancelled') setDiskScanState('cancelled');
+    else if (job.state === 'failed') {
+      setScanError(job.error || 'The asset scan failed.');
+      setDiskScanState('idle');
+    }
+  }
+
+  async function pollNativeScan(jobId) {
+    // 150ms keeps progress responsive without turning a long filesystem scan
+    // into a request storm. The refs prevent late responses after unmount or
+    // after the user starts a different job.
+    try {
+      const job = await backend.getAssetScanStatus(jobId);
+      if (unmountedRef.current || activeJobRef.current !== jobId) return;
+      applyNativeJob(job);
+      if (job.state === 'running') {
+        pollRef.current = setTimeout(() => void pollNativeScan(jobId), 150);
+      }
+    } catch (error) {
+      if (!unmountedRef.current && activeJobRef.current === jobId) {
+        setScanError(backendError(error));
+        setDiskScanState('idle');
+      }
+    }
+  }
+
   async function startNativeScan() {
+    if (!selectedVolumeId || diskScanState === 'scanning') return;
     setDiskScanState('scanning');
     setDiskScanProgress(0);
     setScanError('');
+    setSummary(null);
+    setTopFolders([]);
     try {
       const job = await backend.startAssetScan(selectedVolumeId);
-      setSummary(job);
-      setDiskScanProgress(100);
-      setDiskScanState('complete');
+      activeJobRef.current = job.id;
+      applyNativeJob(job);
+      if (job.state === 'running') void pollNativeScan(job.id);
     } catch (error) {
       setScanError(backendError(error));
       setDiskScanState('idle');
+    }
+  }
+
+  async function cancelNativeScan() {
+    const jobId = activeJobRef.current;
+    if (!jobId) return;
+    try {
+      const job = await backend.cancelAssetScan(jobId);
+      applyNativeJob(job);
+    } catch (error) {
+      setScanError(backendError(error));
     }
   }
 
@@ -87,6 +140,8 @@ export function DiskScanner() {
     setSummary(null);
     let progress = 0;
     if (timerRef.current) clearInterval(timerRef.current);
+    // The timer is deliberately only a browser demo; native progress comes
+    // from FileTrees.scan and is never fabricated in the desktop shell.
     timerRef.current = setInterval(() => {
       progress += 20;
       setDiskScanProgress(progress);
@@ -176,13 +231,24 @@ export function DiskScanner() {
             disabled={diskScanState === 'scanning'}
           >
             {diskScanState === 'scanning'
-              ? `Scanning ${diskScanProgress}%`
+              ? diskScanProgress > 0
+                ? `Scanning ${diskScanProgress}%`
+                : 'Scanning...'
               : diskScanState === 'complete'
                 ? 'Scan again'
                 : native
                   ? 'Start scan'
                   : 'Start mock scan'}
           </button>
+          {native && diskScanState === 'scanning' && (
+            <button
+              type="button"
+              className={sx('text-button')}
+              onClick={cancelNativeScan}
+            >
+              Cancel scan
+            </button>
+          )}
           {!native && (
             <p className={sx('note')}>Mock data only. No files are read.</p>
           )}
@@ -194,27 +260,45 @@ export function DiskScanner() {
               <span className={sx('panel-label')}>Largest</span>
               <h2 className={sx('panel-title')}>Folders</h2>
             </div>
-            <span className={sx('muted')}>never</span>
+            <span className={sx('muted')}>
+              {summary ? 'just now' : 'never'}
+            </span>
           </div>
           <div className={sx('folder-list')}>
-            {mockFolders.map((folder) => (
-              <div key={folder.name}>
-                <div className={sx('folder-copy')}>
-                  <span>{folder.name}</span>
-                  <strong className={sx('folderStrong')}>{folder.size}</strong>
-                </div>
-                <div className={sx('barNoMargin')}>
-                  <span
-                    className={sx('barFill')}
-                    style={`width: ${folder.percent}%`}
-                  />
-                </div>
-              </div>
-            ))}
+            {(topFolders.length > 0 ? topFolders : mockFolders).map(
+              (folder) => {
+                const size =
+                  folder.bytes !== undefined
+                    ? formatBytes(folder.bytes)
+                    : folder.size;
+                const percent =
+                  summary &&
+                  summary.scannedBytes > 0 &&
+                  folder.bytes !== undefined
+                    ? Math.round((folder.bytes / summary.scannedBytes) * 100)
+                    : folder.percent || 0;
+                return (
+                  <div key={folder.name}>
+                    <div className={sx('folder-copy')}>
+                      <span>{folder.name}</span>
+                      <strong className={sx('folderStrong')}>{size}</strong>
+                    </div>
+                    <div className={sx('barNoMargin')}>
+                      <span
+                        className={sx('barFill')}
+                        style={`width: ${percent}%`}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+            )}
           </div>
           <div className={sx('footerRow')}>
             <span>Free space</span>
-            <strong className={sx('strongGreen')}>286 GB</strong>
+            <strong className={sx('strongGreen')}>
+              {summary ? formatBytes(summary.scannedBytes) : '286 GB'}
+            </strong>
           </div>
         </div>
       </div>

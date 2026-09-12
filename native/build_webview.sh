@@ -29,6 +29,7 @@ cp "$BUILD_DIR/core/libwebview.so" "$OUTPUT_DIR/libwebview.so"
     -I"$SOURCE_DIR/core/include" \
     $(pkg-config --cflags gtk+-3.0 webkit2gtk-4.1) \
     -L"$OUTPUT_DIR" -lwebview -Wl,-rpath,'$ORIGIN' \
+    $(pkg-config --libs gtk+-3.0 webkit2gtk-4.1) \
     -o "$OUTPUT_DIR/libjulia_webview_bridge.so"
 
 printf 'Built %s\n' "$OUTPUT_DIR/libwebview.so"

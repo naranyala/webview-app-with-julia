@@ -1,8 +1,27 @@
+"""
+    JuliaStarter
+
+Top-level package for the webview desktop toolkit. Includes all submodules in
+dependency order: ManualWebview (no Julia deps) → AudioAnalysisAdapter (Aural)
+→ Jobs, Persistence (standalone) → filesystem/PDF/BibTeX/Blender utilities
+→ Backend (depends on everything above).
+"""
 module JuliaStarter
 
-export calculate_fibonacci, fibonacci, frontend_html, greet, main
+export AudioAnalysisAdapter, Backend, BibTeX, BlendReader, FileTrees, Jobs, PDFGen,
+    Persistence, StaticMediaAdapter,
+    calculate_fibonacci, fibonacci, frontend_html, greet, main
 
 include("ManualWebview.jl")
+include("AudioAnalysisAdapter.jl")
+include("Jobs.jl")
+include("Persistence.jl")
+include("StaticMediaAdapter.jl")
+include("fs/FileTrees.jl")
+include("pdf/PDFGen.jl")
+include("bibtex/BibTeX.jl")
+include("blender/BlendReader.jl")
+include("Backend.jl")
 
 """Return a greeting for `name`."""
 function greet(name::AbstractString = "world")
@@ -38,6 +57,8 @@ function calculate_fibonacci(value)
     end
 
     0 <= n <= 50 || throw(ArgumentError("n must be between 0 and 50"))
+    # fibonacci(50) = 12,586,269,025 fits in Int64; fibonacci(93) overflows.
+    # 50 is a conservative limit.
     return Dict("input" => n, "result" => fibonacci(n))
 end
 

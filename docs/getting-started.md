@@ -49,8 +49,10 @@ Instantiate the Julia project:
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
-`Project.toml` declares `JSON3` and Julia's standard `Libdl`; `Manifest.toml`
-is intentionally ignored by the repository.
+`Project.toml` declares JSON3, LinuxCompanion, and the local development
+dependency `../Aural.jl`; Julia's `Manifest.toml` is intentionally ignored by
+the repository. Before distributing the app, replace the local Aural source
+with a tagged or registered Aural release.
 
 ## Build and run
 
