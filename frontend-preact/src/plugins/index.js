@@ -5,8 +5,8 @@ import { ChainNotes } from './chain-notes.jsx';
 import { defineFrontendPlugin } from './contract.js';
 import { DiskScanner } from './disk-scanner.jsx';
 import { IndonesiaMap } from './indonesia-map.jsx';
+import { MediaInspector } from './media-inspector.jsx';
 import { MirLab } from './mir-lab.jsx';
-import { Quiz } from './quiz.jsx';
 import { TabVault } from './tab-vault.jsx';
 import { TodoApp } from './todo.jsx';
 
@@ -18,6 +18,14 @@ export {
   INDONESIA_MAP_MODEL,
   INDONESIA_REGION_INDEX
 } from './indonesia-map-api.js';
+export {
+  enhancePaperExtensions,
+  getPaperExtension,
+  listPaperExtensions,
+  paperBlocksToHtml,
+  parsePaperMarkdown,
+  registerPaperExtension
+} from './paper-extensions.js';
 
 export const diskScannerPlugin = defineFrontendPlugin({
   id: 'disk',
@@ -69,6 +77,16 @@ export const mirLabPlugin = defineFrontendPlugin({
   component: MirLab
 });
 
+export const mediaInspectorPlugin = defineFrontendPlugin({
+  id: 'media',
+  index: '08',
+  title: 'Media Inspector',
+  description: 'Inspect, preview, and convert local documents and images.',
+  tone: 'cyan',
+  symbol: 'MEDIA',
+  component: MediaInspector
+});
+
 export const indonesiaMapPlugin = defineFrontendPlugin({
   id: 'map',
   index: '09',
@@ -87,16 +105,6 @@ export const chainNotesPlugin = defineFrontendPlugin({
   tone: 'purple',
   symbol: 'NOTE',
   component: ChainNotes
-});
-
-export const quizPlugin = defineFrontendPlugin({
-  id: 'quiz',
-  index: '11',
-  title: 'Quiz',
-  description: 'Create, study, and review flashcard collections.',
-  tone: 'gold',
-  symbol: 'QUIZ',
-  component: Quiz
 });
 
 export const blenderCompanionPlugin = defineFrontendPlugin({
@@ -126,9 +134,9 @@ const registeredPlugins = [
   tabVaultPlugin,
   academicPaperPlugin,
   mirLabPlugin,
+  mediaInspectorPlugin,
   indonesiaMapPlugin,
   chainNotesPlugin,
-  quizPlugin,
   blenderCompanionPlugin,
   todoPlugin
 ];

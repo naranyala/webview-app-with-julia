@@ -28,8 +28,8 @@ Vaults are stored under the `tab-vault.collections` local-storage key.
 
 ### MIR Papers
 
-The bundled academic-paper sample can be read in Draft (single-column) or
-Final (two-column) mode. The Paper submenu contains:
+The bundled academic-paper sample can be read and exported as a single-column
+preprint or a two-column academic paper. The Paper submenu contains:
 
 - Reader: section navigation, citations, figures, reading statistics, print,
   and PDF export.
@@ -43,9 +43,12 @@ Paper citations use `[@key]`. Figures use a full-line marker such as
 sanitized for inline display; vector figures use a labeled placeholder in PDF
 output. Paper edits are stored in memory and are lost on reload.
 
-Three PDF engines are available through the shared adapter: jsPDF, pdf-lib,
-and pdfmake. Browser mode downloads the result; a complete native `savePdf`
-binding can write it to the user's Documents folder.
+Three PDF engines are available for single-column output through the shared
+adapter: jsPDF, pdf-lib, and pdfmake. Two-column output uses jsPDF's
+deterministic column flow, keeping title metadata and the abstract full-width
+before flowing sections, figures, and references across columns. Browser mode
+downloads the result; the native `savePdf` binding writes it to the user's
+Documents folder.
 
 ### MIR Lab
 
@@ -70,9 +73,8 @@ The following modules are also registered:
 | Module | Implemented behavior |
 | --- | --- |
 | `chain-notes.jsx` | Searchable Q&A notes, autosave coordination, external-chat import, Markdown rendering, print, and three-engine PDF export. |
-| `quiz.jsx` | Session mode plus an editor for three bundled read-only decks and editable user decks. |
 | `todo.jsx` | Todo list with all/active/completed filters, due dates, hash filters, local storage, and calendar mode. |
 | `blender-companion.jsx` | Local scene tracking with Blender engine/stage fields and logging to notes. |
 
-Chain Notes and Blender Companion use note bindings, while Quiz uses the quiz
-storage contract.
+Chain Notes and Blender Companion use note bindings. Other tools use the
+analysis, asset, document, and window contracts described in the backend guide.

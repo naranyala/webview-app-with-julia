@@ -1,4 +1,4 @@
-// Schema validation tests for `src/schemas.js`: quiz payloads normalize to
+// Schema validation tests for `src/schemas.js`: native payloads normalize to
 // safe shapes, invalid entries are dropped, and limits mirror the backend.
 // Run: `npm test`. `zig build test` runs it via `npm run test`.
 import {
@@ -10,11 +10,9 @@ import {
   parseConversionPlan,
   parseConversionResult,
   parseMediaCapabilities,
+  parseMediaConversionJob,
   parseMediaInfo,
-  parseMediaWriteResult,
-  parseQuizCollection,
-  parseQuizCollectionList,
-  parseQuizQuestion
+  parseMediaWriteResult
 } from './src/schemas.js';
 
 let failures = 0;
@@ -27,24 +25,6 @@ function check(name, condition, extra = '') {
     console.error(`FAIL: ${name}${extra ? ` (${extra})` : ''}`);
   }
 }
-
-const question = {
-  id: 'q1',
-  topic: 'General',
-  question: 'What is Zig?',
-  answer: 'A systems language.',
-  explanation: 'Low-level control.',
-  difficulty: 'Starter',
-  tags: ['systems', '', 42, 'x'.repeat(65)]
-};
-const parsed = parseQuizQuestion(question);
-check(
-  'question normalizes tags and keeps fields',
-  parsed !== null &&
-    parsed.topic === 'General' &&
-    parsed.tags.length === 1 &&
-    parsed.tags[0] === 'systems'
-);
 
 const scan = parseAssetScanJob({
   id: 'job-1',
@@ -66,6 +46,14 @@ const metadata = parseAudioMetadata({
   sizeBytes: 100,
   measured: true
 });
+const mediaContract = {
+  schemaVersion: 1,
+  provenance: {
+    engine: 'StaticMediaCompanion',
+    engineVersion: '0.1.0',
+    backend: 'julia'
+  }
+};
 check('audio metadata schema normalizes measured metadata', metadata !== null && metadata.channels === 2);
 check(
   'audio analysis schema accepts Julia aliases',
@@ -78,15 +66,27 @@ check(
 check('status schema keeps degraded state', parseBackendStatus({ status: 'degraded' })?.status === 'degraded');
 check(
   'media info schema preserves image dimensions',
-  parseMediaInfo({ path: '/home/a.png', kind: 'ImageData', mime: 'image/png', extension: '.png', size: 12, width: 2, height: 3 })?.height === 3
+  parseMediaInfo({ ...mediaContract, path: '/home/a.png', kind: 'ImageData', mime: 'image/png', extension: '.png', size: 12, width: 2, height: 3 })?.height === 3
+);
+check(
+  'media info schema preserves contract provenance',
+  parseMediaInfo({ ...mediaContract, path: '/home/a.png', kind: 'ImageData', mime: 'image/png', extension: '.png', size: 12 })?.provenance.backend === 'julia'
 );
 check(
   'conversion plan schema preserves route',
-  parseConversionPlan({ input: '/home/a.md', output: '/home/Documents/a.html', backend: 'julia', sourceKind: 'MarkdownText', targetKind: 'HTMLDocument', requiresExternalTool: false, lossiness: 'format_dependent' })?.backend === 'julia'
+  parseConversionPlan({ ...mediaContract, input: '/home/a.md', output: '/home/Documents/a.html', backend: 'julia', sourceKind: 'MarkdownText', targetKind: 'HTMLDocument', requiresExternalTool: false, lossiness: 'format_dependent' })?.backend === 'julia'
 );
 check(
   'conversion result schema clamps warnings',
   parseConversionResult({ output: '/home/Documents/a.html', bytesWritten: 8, warnings: ['notice'] })?.warnings.length === 1
+);
+check(
+  'media conversion job schema preserves a completed result',
+  parseMediaConversionJob({
+    id: 'job-2', input: '/home/a.md', output: '/home/Documents/a.html',
+    state: 'completed', progress: 1,
+    result: { output: '/home/Documents/a.html', bytesWritten: 8, warnings: [] }
+  })?.result?.bytesWritten === 8
 );
 check(
   'media write schema requires a path',
@@ -94,37 +94,7 @@ check(
 );
 check(
   'media capabilities schema keeps tool flags',
-  parseMediaCapabilities({ backend: {}, tools: { magick: true, pandoc: false } })?.tools.magick === true
+  parseMediaCapabilities({ ...mediaContract, backend: {}, tools: { magick: true, pandoc: false } })?.tools.magick === true
 );
-check('question rejects empty prompt', parseQuizQuestion({ ...question, question: '  ' }) === null);
-check('question rejects missing id', parseQuizQuestion({ ...question, id: '' }) === null);
-check('question rejects oversized answer', parseQuizQuestion({ ...question, answer: 'x'.repeat(20001) }) === null);
-check('question rejects non-objects', parseQuizQuestion(null) === null);
-
-const collection = {
-  id: 'c1',
-  title: 'Zig Basics',
-  description: 'First deck',
-  tone: 'gold',
-  level: 'Custom',
-  questions: [question, { id: '', question: '', answer: '' }]
-};
-const parsedCollection = parseQuizCollection(collection);
-check(
-  'collection fills defaults and drops bad questions',
-  parsedCollection !== null &&
-    parsedCollection.shortTitle === 'Zig Basics' &&
-    parsedCollection.questions.length === 1
-);
-check(
-  'collection rejects empty titles',
-  parseQuizCollection({ ...collection, title: '' }) === null
-);
-check(
-  'collection list drops invalid entries',
-  parseQuizCollectionList([collection, null, 'junk']).length === 1 &&
-    parseQuizCollectionList('junk').length === 0
-);
-
 if (failures > 0) process.exit(1);
 console.log('schemas: all tests passed');

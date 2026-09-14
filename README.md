@@ -17,7 +17,6 @@ The launcher provides the following tools:
 - MIR Lab
 - Indonesia Map
 - Chain Notes
-- Quiz
 - Blender Companion
 - Todos
 

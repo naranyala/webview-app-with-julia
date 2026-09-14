@@ -32,13 +32,22 @@ function _generate_pdf(args)
     all(value -> value isa AbstractString, args[1:3]) ||
         return _err("InvalidArgument", "Filename, title, and body must be text")
     filename, title, body = args[1], args[2], args[3]
+    # Optional fourth argument selects the academic layout. Existing three
+    # argument calls keep the single-column default.
+    layout = length(args) >= 4 ? args[4] : "single"
+    layout isa AbstractString ||
+        return _err("InvalidArgument", "Layout must be text")
+    columns = layout == "single" ? 1 :
+        (layout == "two-column" || layout == "double" ? 2 : nothing)
+    columns === nothing &&
+        return _err("InvalidArgument", "Layout must be \"single\" or \"two-column\"")
     occursin(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}\.pdf$", filename) ||
         return _err("InvalidPdfName", "Filename must be alphanumeric with .pdf extension")
     directory = joinpath(homedir(), "Documents")
     path = _safe_path(directory, filename)
     path === nothing && return _err("InvalidPdfName", "Path traversal not allowed")
     try
-        PDFGen.write_pdf(path, title, body)
+        PDFGen.write_pdf(path, title, body; columns=columns)
         _ok(Dict("path" => path, "size" => filesize(path)))
     catch error
         _err("PdfWriteFailed", sprint(showerror, error))

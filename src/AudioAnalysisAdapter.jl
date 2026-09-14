@@ -29,6 +29,9 @@ const MAX_SAMPLE_RATE = 192_000
 # limit, not a decoded-size limit — the bounded window handles the latter.
 const MAX_FILE_BYTES = 512 * 1024 * 1024
 const SUPPORTED_EXTENSIONS = Set(["wav", "wave"])
+const SPECTRAL_WINDOW_SIZE = 2_048
+const SPECTRAL_HOP_SIZE = 512
+const SPECTRAL_FFT_SIZE = 4_096
 
 struct AudioUnsupportedError <: Exception
     path::String
@@ -83,7 +86,36 @@ end
 # Core analysis: single-frame RMS, ZCR, and peak.
 # window_size == hop_size means we treat the entire input as one analysis frame
 # (a summary, not a time-series). This is intentional for the "quick" profile.
-function _summary(values, sample_rate; source_channels=1, source_sample_count=length(values))
+function _track_mean(track)
+    track_values = Aural.values(track)
+    isempty(track_values) ? 0.0 : sum(track_values) / length(track_values)
+end
+
+function _spectral_summary(audio, sample_count)
+    window_size = min(SPECTRAL_WINDOW_SIZE, sample_count)
+    hop_size = min(SPECTRAL_HOP_SIZE, window_size)
+    spectrum = Aural.spectrogram(
+        audio;
+        window_size=window_size,
+        hop_size=hop_size,
+        nfft=SPECTRAL_FFT_SIZE,
+        pad=true,
+    )
+    Dict{String,Any}(
+        "spectralCentroidHz" => _track_mean(Aural.spectral_centroid(spectrum)),
+        "spectralBandwidthHz" => _track_mean(Aural.spectral_bandwidth(spectrum)),
+        "spectralRolloffHz" => _track_mean(Aural.spectral_rolloff(spectrum; fraction=0.85)),
+        "spectralFlatness" => _track_mean(Aural.spectral_flatness(spectrum)),
+        "spectralFlux" => _track_mean(Aural.spectral_flux(spectrum)),
+        "spectralWindowSize" => SPECTRAL_WINDOW_SIZE,
+        "spectralHopSize" => SPECTRAL_HOP_SIZE,
+        "spectralFftSize" => SPECTRAL_FFT_SIZE,
+    )
+end
+
+function _summary(values, sample_rate; source_channels=1,
+                  source_sample_count=length(values), profile="quick")
+    profile in ("quick", "spectral") || throw(ArgumentError("analysis profile must be quick or spectral"))
     audio = Aural.AudioBuffer(values, sample_rate)
     settings = Aural.AnalysisConfig(
         window_size=length(values),
@@ -96,7 +128,7 @@ function _summary(values, sample_rate; source_channels=1, source_sample_count=le
     rms = Aural.values(rms_track)[1]
     zcr = Aural.values(zcr_track)[1]
     peak = maximum(abs, values)
-    Dict{String,Any}(
+    result = Dict{String,Any}(
         "rms" => rms,
         "peak" => peak,
         "zcr" => zcr,
@@ -105,16 +137,18 @@ function _summary(values, sample_rate; source_channels=1, source_sample_count=le
         "duration_seconds" => length(values) / sample_rate,
         "sourceChannels" => source_channels,
         "sourceSampleCount" => source_sample_count,
-        "analysisSchema" => 1,
-        "analysisProfile" => "quick",
+        "analysisSchema" => profile == "spectral" ? 2 : 1,
+        "analysisProfile" => profile,
         "channelPolicy" => "mono",
         "engine" => "Aural",
     )
+    profile == "spectral" && merge!(result, _spectral_summary(audio, length(values)))
+    result
 end
 
-function analyze_samples(samples, sample_rate)
+function analyze_samples(samples, sample_rate; profile="quick")
     values, rate = _validate_samples(samples, sample_rate)
-    _summary(values, rate)
+    _summary(values, rate; profile=String(profile))
 end
 
 function read_metadata(path::AbstractString)
@@ -258,7 +292,7 @@ end
 
 # Analyze only the first bounded window. Header/chunk parsing seeks over the
 # rest of the file, so a large WAV does not get decoded into memory first.
-function analyze_file(path::AbstractString; max_frames::Integer=MAX_SAMPLE_COUNT)
+function analyze_file(path::AbstractString; max_frames::Integer=MAX_SAMPLE_COUNT, profile="quick")
     path_string, format = _validate_path(path)
     1 <= max_frames <= MAX_SAMPLE_COUNT || throw(ArgumentError("max_frames is invalid"))
     values, sample_rate, channels, source_frames, frames = try
@@ -266,7 +300,8 @@ function analyze_file(path::AbstractString; max_frames::Integer=MAX_SAMPLE_COUNT
     catch error
         throw(ArgumentError("could not read WAV audio: $(sprint(showerror, error))"))
     end
-    result = _summary(values, sample_rate; source_channels=channels, source_sample_count=source_frames)
+    result = _summary(values, sample_rate; source_channels=channels,
+        source_sample_count=source_frames, profile=String(profile))
     result["path"] = path_string
     result["format"] = format == "wave" ? "wav" : format
     result["channels"] = channels

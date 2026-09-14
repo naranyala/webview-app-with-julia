@@ -7,9 +7,9 @@ using Aural
 # Reset state before tests
 Backend.STATE.counter = 0
 empty!(Backend.STATE.notes)
-empty!(Backend.STATE.quizzes)
 empty!(Backend.STATE.scan_jobs)
 empty!(Backend.STATE.audio_jobs)
+empty!(Backend.STATE.media_jobs)
 empty!(Backend.STATE.jobs.jobs)
 empty!(Backend.STATE.volumes)
 
@@ -28,6 +28,28 @@ empty!(Backend.STATE.volumes)
         status, payload = Backend.handle_request("increment", "")
         @test status == 1
         @test JSON3.read(payload)["code"] == "InvalidArgument"
+
+        plugin_name = "testPluginBinding"
+        Backend.register_handler!(plugin_name, _ -> Backend._ok(Dict("plugin" => true)))
+        @test_throws ArgumentError Backend.register_handler!(
+            plugin_name,
+            _ -> Backend._ok(Dict("plugin" => false)),
+        )
+        @test_throws ArgumentError Backend.register_handler!(
+            "closeWindow",
+            _ -> Backend._ok(Dict("plugin" => false)),
+        )
+        @test Backend.register_handler!(
+            plugin_name,
+            _ -> Backend._ok(Dict("plugin" => true)),
+            replace=true,
+        ) == plugin_name
+        status, payload = Backend.handle_request(plugin_name, "")
+        @test status == 0
+        @test JSON3.read(payload)["plugin"] == true
+        @test plugin_name in Backend.handler_names()
+        @test Backend.unregister_handler!(plugin_name)
+        @test !Backend.unregister_handler!(plugin_name)
     end
 
     @testset "increment and reset" begin
@@ -97,6 +119,21 @@ empty!(Backend.STATE.volumes)
         # Delete
         status, result = Backend.handle_request("deleteNote", "[\"$note_id\"]")
         @test status == 0
+        @test length(Backend.STATE.pending_writes) == 1
+        @test length(Backend.STATE.persist_timers) == 1
+        @test Backend.flush_pending!()
+        @test isempty(Backend.STATE.pending_writes)
+    end
+
+    @testset "note writes are trailing-edge coalesced" begin
+        Backend._schedule_persist("notes", [Dict{String,Any}("body" => "first")]; delay=60)
+        first_timer = Backend.STATE.persist_timers["notes"]
+        Backend._schedule_persist("notes", [Dict{String,Any}("body" => "latest")]; delay=60)
+        @test Backend.STATE.persist_timers["notes"] !== first_timer
+        @test Backend.STATE.pending_writes["notes"][1]["body"] == "latest"
+        @test Backend.flush_pending!()
+        @test isempty(Backend.STATE.pending_writes)
+        @test isempty(Backend.STATE.persist_timers)
     end
 
     @testset "note validation" begin
@@ -126,77 +163,6 @@ empty!(Backend.STATE.volumes)
         @test status == 1
         err = JSON3.read(result)
         @test err["code"] == "NoteNotFound"
-    end
-
-    @testset "quiz CRUD" begin
-        # Create collection
-        status, result = Backend.handle_request("quizCreateCollection", "[\"Test Quiz\", \"A test quiz\", \"gold\", \"Beginner\"]")
-        @test status == 0
-        col = JSON3.read(result)
-        @test col["title"] == "Test Quiz"
-        @test col["tone"] == "gold"
-        col_id = col["id"]
-
-        # List
-        status, result = Backend.handle_request("quizList", "")
-        @test status == 0
-        quizzes = JSON3.read(result)
-        @test length(quizzes) >= 1
-
-        # Update collection
-        status, result = Backend.handle_request("quizUpdateCollection", "[\"$col_id\", \"Updated Quiz\", \"New desc\"]")
-        @test status == 0
-        updated = JSON3.read(result)
-        @test updated["title"] == "Updated Quiz"
-
-        # Create question
-        status, result = Backend.handle_request("quizCreateQuestion", "[\"$col_id\", \"math\", \"What is 2+2?\", \"4\"]")
-        @test status == 0
-        q = JSON3.read(result)
-        @test q["question"] == "What is 2+2?"
-        q_id = q["id"]
-
-        # Update question
-        status, result = Backend.handle_request("quizUpdateQuestion", "[\"$col_id\", \"$q_id\", \"math\", \"What is 3+3?\", \"6\", \"Basic math\", \"easy\", \"math,addition\"]")
-        @test status == 0
-        updated_q = JSON3.read(result)
-        @test updated_q["question"] == "What is 3+3?"
-        @test "math" in updated_q["tags"]
-        @test "addition" in updated_q["tags"]
-
-        # Delete question
-        status, result = Backend.handle_request("quizDeleteQuestion", "[\"$col_id\", \"$q_id\"]")
-        @test status == 0
-
-        # Delete collection
-        status, result = Backend.handle_request("quizDeleteCollection", "[\"$col_id\"]")
-        @test status == 0
-    end
-
-    @testset "quiz not found" begin
-        status, result = Backend.handle_request("quizUpdateCollection", "[\"nonexistent\", \"T\", \"D\"]")
-        @test status == 1
-        err = JSON3.read(result)
-        @test err["code"] == "QuizNotFound"
-    end
-
-    @testset "quiz import and export" begin
-        source = JSON3.write(Dict(
-            "title" => "Imported deck",
-            "description" => "Imported safely",
-            "questions" => [Dict("question" => "Prompt", "answer" => "Answer")],
-        ))
-        status, result = Backend.handle_request("quizImport", JSON3.write([source]))
-        @test status == 0
-        imported = JSON3.read(result)
-        @test imported["title"] == "Imported deck"
-        @test imported["questions"][1]["id"] != ""
-
-        status, result = Backend.handle_request("quizExport", JSON3.write([imported["id"]]))
-        @test status == 0
-        exported = JSON3.read(result)
-        @test isfile(exported["path"])
-        @test exported["size"] > 0
     end
 
     @testset "MIR analysis" begin
@@ -309,6 +275,22 @@ empty!(Backend.STATE.volumes)
         pdf = JSON3.read(result)
         @test isfile(pdf["path"])
         @test startswith(read(pdf["path"], String), "%PDF-1.4")
+
+        status, result = Backend.handle_request(
+            "generatePdf",
+            JSON3.write(["backend-layout-test.pdf", "Title", "# Heading\nBody", "two-column"]),
+        )
+        @test status == 0
+        two_column = JSON3.read(result)
+        @test isfile(two_column["path"])
+        @test startswith(read(two_column["path"], String), "%PDF-1.4")
+
+        status, result = Backend.handle_request(
+            "generatePdf",
+            JSON3.write(["backend-layout-test.pdf", "Title", "Body", "triple"]),
+        )
+        @test status == 1
+        @test JSON3.read(result)["code"] == "InvalidArgument"
     end
 
     @testset "PDF save" begin
@@ -366,6 +348,8 @@ empty!(Backend.STATE.volumes)
             info = JSON3.read(result)
             @test info["mime"] == "text/markdown"
             @test info["extension"] == ".md"
+            @test info["schemaVersion"] == 1
+            @test info["provenance"]["engine"] == "StaticMediaCompanion"
 
             status, result = Backend.handle_request("readText", JSON3.write([markdown_path]))
             @test status == 0
@@ -382,6 +366,26 @@ empty!(Backend.STATE.volumes)
             status, result = Backend.handle_request("inspectMedia", JSON3.write(["/etc/hosts"]))
             @test status == 1
             @test JSON3.read(result)["code"] == "PathNotAllowed"
+
+            escaped_path = joinpath(source_directory, "escaped.txt")
+            symlink("/etc/hosts", escaped_path)
+            status, result = Backend.handle_request("readText", JSON3.write([escaped_path]))
+            @test status == 1
+            @test JSON3.read(result)["code"] == "PathNotAllowed"
+
+            missing_path = joinpath(source_directory, "missing.txt")
+            status, result = Backend.handle_request("readText", JSON3.write([missing_path]))
+            @test status == 1
+            @test JSON3.read(result)["code"] == "PathMissing"
+
+            oversized_path = joinpath(source_directory, "oversized.txt")
+            open(oversized_path, "w") do io
+                seek(io, StaticMediaAdapter.MAX_TEXT_BYTES)
+                write(io, UInt8(0))
+            end
+            status, result = Backend.handle_request("readText", JSON3.write([oversized_path]))
+            @test status == 1
+            @test JSON3.read(result)["code"] == "MediaTooLarge"
         end
 
         mktempdir(joinpath(homedir(), "Documents")) do output_directory
@@ -403,9 +407,36 @@ empty!(Backend.STATE.volumes)
             )
             @test status == 0
             conversion = JSON3.read(result)
+            @test conversion["schemaVersion"] == 1
+            @test conversion["provenance"]["backend"] == conversion["backend"]
             @test conversion["output"] == converted
             @test conversion["bytesWritten"] > 0
             @test occursin("Converted", read(converted, String))
+
+            async_output = joinpath(output_directory, "converted-async.html")
+            status, result = Backend.handle_request(
+                "startMediaConversion",
+                JSON3.write([input, async_output]),
+            )
+            @test status == 0
+            media_job = JSON3.read(result)
+            media_job_id = String(media_job["id"])
+            current = media_job
+            for _ in 1:100
+                status, result = Backend.handle_request(
+                    "getMediaConversionStatus",
+                    JSON3.write([media_job_id]),
+                )
+                @test status == 0
+                current = JSON3.read(result)
+                current["state"] in ("completed", "failed", "cancelled") && break
+                sleep(0.02)
+            end
+            @test current["state"] == "completed"
+            @test current["schemaVersion"] == 1
+            @test current["provenance"]["backend"] == current["result"]["backend"]
+            @test current["result"]["output"] == async_output
+            @test isfile(async_output)
 
             input = joinpath(homedir(), ".config", "julia-starter", "media-plan.md")
             write(input, "# Plan")
@@ -417,6 +448,8 @@ empty!(Backend.STATE.volumes)
             @test status == 0
             plan = JSON3.read(result)
             @test plan["targetKind"] == "html"
+            @test plan["schemaVersion"] == 1
+            @test plan["provenance"]["backend"] == plan["backend"]
             rm(input; force=true)
         end
 
@@ -425,6 +458,8 @@ empty!(Backend.STATE.volumes)
         capabilities = JSON3.read(result)
         @test haskey(capabilities, "backend")
         @test haskey(capabilities, "tools")
+        @test capabilities["schemaVersion"] == 1
+        @test capabilities["provenance"]["engine"] == "StaticMediaCompanion"
     end
 
     @testset "window management" begin

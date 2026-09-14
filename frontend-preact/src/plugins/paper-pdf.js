@@ -1,15 +1,20 @@
-import { parseInline, parseMarkdown } from './note-markdown.js';
+import { parseInline } from './note-markdown.js';
 import { downloadBytes, pdfFileName, renderBlocks } from './note-pdf.js';
 import {
   enrichFigureBlocks,
   resolveCitations,
   resolveFigures
 } from './paper.js';
+import { parsePaperMarkdown } from './paper-extensions.js';
 
-// Paper → document blocks for the shared PDF renderers: full-width title
-// block, abstract, then one heading per section and a numbered reference
-// list. Screen reading is two-column CSS; the PDF stays single-column
-// preprint style, which keeps all three engines consistent.
+export const PAPER_PDF_LAYOUTS = Object.freeze([
+  { id: 'single', label: 'Single column' },
+  { id: 'double', label: 'Two columns' }
+]);
+
+// Paper -> document blocks: title metadata and abstract remain full-width;
+// the columnsStart marker lets the academic renderer flow the body and
+// references through one or two columns.
 export function paperBlocks(paper) {
   const resolved = resolveCitations(paper);
   const figures = resolveFigures(paper);
@@ -36,6 +41,7 @@ export function paperBlocks(paper) {
       spans: [{ t: `Keywords: ${paper.keywords.join(', ')}`, i: true }]
     });
   }
+  blocks.push({ type: 'columnsStart' });
   for (const section of resolved.sections) {
     blocks.push({ type: 'heading', level: 2, text: section.title });
     blocks.push(...richBlocks(section.body, figures));
@@ -57,7 +63,15 @@ function richBlocks(text, figures) {
   const source = String(text || '');
   if (!source) return [{ type: 'body', text: '—' }];
   const blocks = [];
-  for (const parsed of parseMarkdown(source)) {
+  for (const parsed of parsePaperMarkdown(source)) {
+    if (parsed.type === 'diagram') {
+      blocks.push({ type: 'code', lang: 'mermaid', text: parsed.text });
+      continue;
+    }
+    if (parsed.type === 'math') {
+      blocks.push({ type: 'para', spans: [{ t: parsed.source, i: true }] });
+      continue;
+    }
     if (parsed.type === 'para') {
       blocks.push({ type: 'para', spans: parsed.spans });
     } else {
@@ -72,12 +86,22 @@ export function paperPdfFileName(paper) {
   return pdfFileName(paper.title);
 }
 
-export async function generatePaperPdfBytes(exporterId, paper) {
-  return renderBlocks(exporterId, paperBlocks(paper));
+export async function generatePaperPdfBytes(
+  exporterId,
+  paper,
+  layout = 'single'
+) {
+  const normalizedLayout = layout === 'double' ? 'double' : 'single';
+  // The imperative renderer provides deterministic page-to-page column flow.
+  // Single-column papers retain the user's selected rendering engine.
+  const activeExporter = normalizedLayout === 'double' ? 'jspdf' : exporterId;
+  return renderBlocks(activeExporter, paperBlocks(paper), {
+    columns: normalizedLayout === 'double' ? 2 : 1
+  });
 }
 
-export async function downloadPaperAsPdf(exporterId, paper) {
-  const bytes = await generatePaperPdfBytes(exporterId, paper);
+export async function downloadPaperAsPdf(exporterId, paper, layout = 'single') {
+  const bytes = await generatePaperPdfBytes(exporterId, paper, layout);
   downloadBytes(bytes, paperPdfFileName(paper));
   return bytes;
 }

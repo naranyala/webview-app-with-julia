@@ -7,76 +7,10 @@
 const MAX_ID = 200;
 const MAX_TITLE = 200;
 const MAX_TEXT = 20000;
-const MAX_TOPIC = 200;
-const MAX_DIFFICULTY = 64;
-const MAX_TAG = 64;
-const MAX_TAGS = 16;
 const MAX_PATH = 4096;
-
-function isNonEmptyString(value) {
-  return typeof value === 'string' && value.trim().length > 0;
-}
 
 function cleanString(value, fallback = '') {
   return typeof value === 'string' ? value : fallback;
-}
-
-function cleanTags(value) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .filter((tag) => typeof tag === 'string')
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0 && tag.length <= MAX_TAG)
-    .slice(0, MAX_TAGS);
-}
-
-export function parseQuizQuestion(value) {
-  // Invalid records are dropped rather than thrown so one corrupt persisted
-  // question cannot take down the whole quiz screen.
-  if (!value || typeof value !== 'object') return null;
-  if (typeof value.id !== 'string' || value.id.length === 0) return null;
-  if (value.id.length > MAX_ID) return null;
-  if (!isNonEmptyString(value.question) || !isNonEmptyString(value.answer)) {
-    return null;
-  }
-  if (value.question.length > MAX_TEXT || value.answer.length > MAX_TEXT) {
-    return null;
-  }
-  return {
-    id: value.id,
-    topic: cleanString(value.topic).slice(0, MAX_TOPIC),
-    question: value.question,
-    answer: value.answer,
-    explanation: cleanString(value.explanation).slice(0, MAX_TEXT),
-    difficulty: cleanString(value.difficulty).slice(0, MAX_DIFFICULTY),
-    tags: cleanTags(value.tags)
-  };
-}
-
-export function parseQuizCollection(value) {
-  if (!value || typeof value !== 'object') return null;
-  if (typeof value.id !== 'string' || value.id.length === 0) return null;
-  if (value.id.length > MAX_ID) return null;
-  if (!isNonEmptyString(value.title) || value.title.length > MAX_TITLE) {
-    return null;
-  }
-  return {
-    id: value.id,
-    title: value.title,
-    shortTitle: cleanString(value.shortTitle, value.title),
-    description: cleanString(value.description).slice(0, MAX_TEXT),
-    tone: cleanString(value.tone, 'gold'),
-    icon: cleanString(value.icon),
-    level: cleanString(value.level, 'Custom'),
-    questions: Array.isArray(value.questions)
-      ? value.questions.map(parseQuizQuestion).filter(Boolean)
-      : []
-  };
-}
-
-export function parseQuizCollectionList(value) {
-  if (!Array.isArray(value)) return [];
-  return value.map(parseQuizCollection).filter(Boolean);
 }
 
 function boundedNumber(value, fallback = 0) {
@@ -175,6 +109,21 @@ export function parseAudioAnalysis(value) {
     rms: Math.max(0, boundedNumber(value.rms)),
     peak: Math.max(0, boundedNumber(value.peak)),
     zcr: Math.max(0, boundedNumber(value.zcr)),
+    ...(value.spectralCentroidHz !== undefined && {
+      spectralCentroidHz: Math.max(0, boundedNumber(value.spectralCentroidHz))
+    }),
+    ...(value.spectralBandwidthHz !== undefined && {
+      spectralBandwidthHz: Math.max(0, boundedNumber(value.spectralBandwidthHz))
+    }),
+    ...(value.spectralRolloffHz !== undefined && {
+      spectralRolloffHz: Math.max(0, boundedNumber(value.spectralRolloffHz))
+    }),
+    ...(value.spectralFlatness !== undefined && {
+      spectralFlatness: Math.max(0, boundedNumber(value.spectralFlatness))
+    }),
+    ...(value.spectralFlux !== undefined && {
+      spectralFlux: Math.max(0, boundedNumber(value.spectralFlux))
+    }),
     durationSeconds: Math.max(
       0,
       boundedNumber(value.duration_seconds ?? value.durationSec)
@@ -220,6 +169,30 @@ export function parseTextPayload(value) {
   return typeof value === 'string' ? value : null;
 }
 
+function parseMediaContract(value) {
+  const provenance =
+    value?.provenance && typeof value.provenance === 'object'
+      ? value.provenance
+      : {};
+  return {
+    schemaVersion: Math.max(
+      1,
+      Math.floor(boundedNumber(value?.schemaVersion, 1))
+    ),
+    provenance: {
+      engine: cleanString(provenance.engine, 'StaticMediaCompanion').slice(
+        0,
+        MAX_TITLE
+      ),
+      engineVersion: cleanString(provenance.engineVersion, 'unknown').slice(
+        0,
+        MAX_TITLE
+      ),
+      backend: cleanString(provenance.backend, 'unknown').slice(0, MAX_TITLE)
+    }
+  };
+}
+
 export function parseMediaInfo(value) {
   if (!value || typeof value !== 'object') return null;
   if (typeof value.path !== 'string' || typeof value.kind !== 'string')
@@ -231,6 +204,7 @@ export function parseMediaInfo(value) {
       ? null
       : Math.max(0, Math.floor(boundedNumber(item)));
   return {
+    ...parseMediaContract(value),
     path: value.path.slice(0, MAX_PATH),
     kind: value.kind.slice(0, MAX_TITLE),
     mime: value.mime.slice(0, MAX_TITLE),
@@ -256,6 +230,7 @@ export function parseConversionPlan(value) {
   if (typeof value.input !== 'string' || typeof value.output !== 'string')
     return null;
   return {
+    ...parseMediaContract(value),
     input: value.input.slice(0, MAX_PATH),
     output: value.output.slice(0, MAX_PATH),
     sourceKind: cleanString(value.sourceKind, 'Unknown').slice(0, MAX_TITLE),
@@ -271,6 +246,7 @@ export function parseConversionResult(value) {
     return null;
   }
   return {
+    ...parseMediaContract(value),
     output: value.output.slice(0, MAX_PATH),
     backend: cleanString(value.backend, 'unknown').slice(0, MAX_TITLE),
     sourceKind: cleanString(value.sourceKind, 'Unknown').slice(0, MAX_TITLE),
@@ -285,6 +261,34 @@ export function parseConversionResult(value) {
   };
 }
 
+export function parseMediaConversionJob(value) {
+  if (!value || typeof value !== 'object' || typeof value.id !== 'string')
+    return null;
+  if (typeof value.input !== 'string' || typeof value.output !== 'string')
+    return null;
+  const state = ['running', 'completed', 'failed', 'cancelled'].includes(
+    value.state
+  )
+    ? value.state
+    : 'failed';
+  const result =
+    value.result === undefined
+      ? undefined
+      : parseConversionResult(value.result);
+  if (value.result !== undefined && !result) return null;
+  return {
+    ...parseMediaContract(value),
+    id: value.id.slice(0, MAX_ID),
+    input: value.input.slice(0, MAX_PATH),
+    output: value.output.slice(0, MAX_PATH),
+    state,
+    progress: Math.min(1, Math.max(0, boundedNumber(value.progress))),
+    message: cleanString(value.message).slice(0, MAX_TEXT),
+    error: cleanString(value.error).slice(0, MAX_TEXT),
+    ...(result && { result })
+  };
+}
+
 export function parseMediaCapabilities(value) {
   if (!value || typeof value !== 'object') return null;
   const backend =
@@ -292,6 +296,7 @@ export function parseMediaCapabilities(value) {
   const tools =
     value.tools && typeof value.tools === 'object' ? value.tools : {};
   return {
+    ...parseMediaContract(value),
     backend,
     tools: Object.fromEntries(
       Object.entries(tools).map(([name, available]) => [

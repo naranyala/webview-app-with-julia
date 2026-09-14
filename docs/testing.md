@@ -42,11 +42,12 @@ npm --prefix frontend-preact run benchmark:paper
 npm --prefix frontend-preact run map:check
 ```
 
-The check scripts cover backend error normalization, quiz data, Q&A parsing,
-Markdown, calendar helpers, schemas, paper/citation logic, MIR math, asset
-classification, map integrity, autosave ordering, fuzzy note search, and PDF
-generation. Component tests additionally cover shell navigation, backend health
-states, error recovery, and plugin registration.
+The check scripts cover backend error normalization, Q&A parsing, Markdown,
+calendar helpers, schemas, paper/citation logic, paper extensions (including
+Mermaid/MathJax fallbacks), MIR math, asset classification, map integrity,
+autosave ordering, fuzzy note search, and PDF generation/layouts.
+Component tests additionally cover shell navigation, backend health states,
+error recovery, and plugin registration.
 
 ## Map data refresh
 

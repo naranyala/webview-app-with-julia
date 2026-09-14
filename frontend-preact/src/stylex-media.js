@@ -40,7 +40,9 @@ export const mediaStyles = stylex.create({
     height: 72,
     margin: '1rem 0 0.75rem',
     padding: '0 0.1rem 0.5rem',
-    borderBottom: `1px solid ${c.border}`
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: c.border
   },
   visualBar: {
     flex: 1,
@@ -86,7 +88,9 @@ export const mediaStyles = stylex.create({
     gap: '0.6rem',
     minHeight: 48,
     padding: '0.35rem 0',
-    borderBottom: `1px solid ${c.border}`
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: c.border
   },
   range: { width: '100%', minHeight: 44, accentColor: c.cyan },
   bandValue: {
@@ -108,7 +112,9 @@ export const mediaStyles = stylex.create({
     gap: '0.75rem',
     marginTop: '0.8rem',
     paddingTop: '0.8rem',
-    borderTop: `1px solid ${c.border}`,
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: c.border,
     color: c.textSecondary,
     fontSize: '0.78rem'
   },
@@ -140,7 +146,9 @@ export const mediaStyles = stylex.create({
     alignItems: 'center',
     gap: '0.5rem',
     padding: '0.8rem',
-    border: `1px solid ${c.border}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.border,
     borderRadius: 10,
     backgroundColor: c.surface,
     color: c.textSecondary,
@@ -181,5 +189,68 @@ export const mediaStyles = stylex.create({
       paddingRight: '0.9rem'
     }
   },
-  backendError: { width: '100%', color: c.red }
+  backendError: { width: '100%', color: c.red },
+  asyncNotice: {
+    margin: '0 0 0.8rem',
+    padding: '0.75rem 0.9rem',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderRadius: 10,
+    fontSize: '0.8rem'
+  },
+  asyncLoading: { borderColor: c.cyanMuted, color: c.cyan },
+  asyncSuccess: { borderColor: c.emeraldMuted, color: c.emerald },
+  asyncError: { borderColor: c.red, color: c.red },
+  mediaInspectorGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gap: '0.8rem',
+    '@media (min-width: 960px)': { gridTemplateColumns: '1fr 1fr' }
+  },
+  mediaPathInput: {
+    width: '100%',
+    minHeight: 44,
+    padding: '0.65rem 0.75rem',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
+    borderRadius: 9,
+    outline: 0,
+    backgroundColor: c.surfaceAlt,
+    color: c.text,
+    fontFamily: 'monospace',
+    fontSize: '0.78rem',
+    ':focus': { borderColor: c.cyan }
+  },
+  mediaActions: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.6rem',
+    marginTop: '0.8rem'
+  },
+  mediaDetails: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: '0.7rem',
+    margin: '1rem 0 0'
+  },
+  mediaDetail: { margin: 0 },
+  mediaRoute: {
+    margin: '1rem 0 0',
+    color: c.text,
+    fontFamily: 'monospace',
+    fontSize: '0.75rem'
+  },
+  mediaPreviewPanel: { marginTop: '0.8rem' },
+  mediaPreview: {
+    maxHeight: 360,
+    margin: '0.8rem 0 0',
+    padding: '1rem',
+    overflow: 'auto',
+    borderRadius: 10,
+    backgroundColor: c.surfaceAlt,
+    color: c.textSecondary,
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word'
+  }
 });

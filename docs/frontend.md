@@ -55,8 +55,27 @@ that must be flushed before navigation or window close.
   output, and PDF output stay aligned.
 - `note-pdf-jspdf.js` owns the jsPDF renderer while `note-pdf.js` keeps block
   construction and exporter selection.
-- `schemas.js` normalizes malformed quiz payloads instead of allowing invalid
+- `paper-extensions.js` provides the academic-content extension registry. Its
+  built-in Mermaid and MathJax adapters keep escaped source visible offline;
+  hosts may progressively enhance those regions by providing
+  `globalThis.mermaid` and `globalThis.MathJax`.
+- `schemas.js` normalizes malformed native payloads instead of allowing invalid
   backend data to reach renderers.
+
+Paper extensions can be added without changing the Markdown parser:
+
+```js
+registerPaperExtension({
+  id: 'citation-network',
+  matches: (block) => block.type === 'code' && block.lang === 'citegraph',
+  renderHtml: (block) => renderCitationNetwork(block.text)
+});
+```
+
+Extension renderers own their HTML contract; built-ins escape source and expose
+`data-mermaid`/`data-math` markers so optional host libraries can enhance the
+reader after it mounts. PDF export preserves unsupported extension source as a
+readable code or text block.
 
 Avoid importing a plugin component into the shell without registering it. A
 component can be fully implemented and tested while remaining invisible to the

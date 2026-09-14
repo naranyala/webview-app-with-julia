@@ -20,46 +20,14 @@ declare global {
     ): Promise<Note>;
     deleteNote(id: string): Promise<void>;
     savePdf(filename: string, dataBase64: string): Promise<SaveResult>;
-    quizList(): Promise<QuizCollection[]>;
-    quizCreateCollection(
-      title: string,
-      description: string,
-      tone: string,
-      level: string
-    ): Promise<QuizCollection>;
-    quizUpdateCollection(
-      id: string,
-      title: string,
-      description: string
-    ): Promise<QuizCollection>;
-    quizDeleteCollection(id: string): Promise<void>;
-    quizCreateQuestion(
-      collectionId: string,
-      topic: string,
-      question: string,
-      answer: string
-    ): Promise<QuizQuestion>;
-    quizUpdateQuestion(
-      collectionId: string,
-      id: string,
-      topic: string,
-      question: string,
-      answer: string,
-      explanation: string,
-      difficulty: string,
-      tagsCsv: string
-    ): Promise<QuizQuestion>;
-    quizDeleteQuestion(collectionId: string, id: string): Promise<void>;
-    quizExport(collectionId: string): Promise<SaveResult>;
-    quizImport(source: string): Promise<QuizCollection>;
-    mirAnalyze(samples: number[], sampleRate: number): Promise<MirFeatures>;
+    mirAnalyze(samples: number[], sampleRate: number, profile?: AnalysisProfile): Promise<MirFeatures>;
     listVolumes(): Promise<StudioVolume[]>;
     startAssetScan(volumeId: string): Promise<AssetScanJob>;
     getAssetScanStatus(jobId: string): Promise<AssetScanJob>;
     cancelAssetScan(jobId: string): Promise<AssetScanJob>;
     getAudioMetadata(path: string): Promise<AudioMetadata>;
-    analyzeAudio(path: string): Promise<AudioAnalysis>;
-    startAudioAnalysis(path: string): Promise<AudioAnalysisJob>;
+    analyzeAudio(path: string, profile?: AnalysisProfile): Promise<AudioAnalysis>;
+    startAudioAnalysis(path: string, profile?: AnalysisProfile): Promise<AudioAnalysisJob>;
     getAudioAnalysisStatus(jobId: string): Promise<AudioAnalysisJob>;
     cancelAudioAnalysis(jobId: string): Promise<AudioAnalysisJob>;
     /** Optional StaticMediaCompanion-backed capabilities. */
@@ -69,11 +37,14 @@ declare global {
     writeText(path: string, content: string): Promise<SaveResult>;
     planConversion(input: string, output: string): Promise<ConversionPlan>;
     convertMedia(input: string, output: string): Promise<ConversionResult>;
+    startMediaConversion(input: string, output: string): Promise<MediaConversionJob>;
+    getMediaConversionStatus(jobId: string): Promise<MediaConversionJob>;
+    cancelMediaConversion(jobId: string): Promise<MediaConversionJob>;
     getMediaCapabilities(): Promise<MediaCapabilities>;
     htmlToText(html: string): Promise<string>;
     parseBibTeX(source: string): Promise<BibEntry[]>;
     inspectBlend(path: string): Promise<BlendHeader>;
-    generatePdf(filename: string, title: string, body: string): Promise<SaveResult>;
+    generatePdf(filename: string, title: string, body: string, layout?: 'single' | 'two-column' | 'double'): Promise<SaveResult>;
     minimizeWindow(): Promise<void>;
     maximizeWindow(): Promise<void>;
     restoreWindow(): Promise<void>;
@@ -96,7 +67,18 @@ interface SaveResult {
   size?: number;
 }
 
-interface MediaInfo {
+interface MediaProvenance {
+  engine: string;
+  engineVersion: string;
+  backend: string;
+}
+
+interface MediaContract {
+  schemaVersion: number;
+  provenance: MediaProvenance;
+}
+
+interface MediaInfo extends MediaContract {
   path: string;
   kind: string;
   mime: string;
@@ -106,7 +88,7 @@ interface MediaInfo {
   height: number | null;
 }
 
-interface ConversionPlan {
+interface ConversionPlan extends MediaContract {
   input: string;
   output: string;
   sourceKind: string;
@@ -116,7 +98,7 @@ interface ConversionPlan {
   lossiness: string;
 }
 
-interface ConversionResult {
+interface ConversionResult extends MediaContract {
   output: string;
   backend: string;
   sourceKind: string;
@@ -125,7 +107,18 @@ interface ConversionResult {
   warnings: string[];
 }
 
-interface MediaCapabilities {
+interface MediaConversionJob extends MediaContract {
+  id: string;
+  input: string;
+  output: string;
+  state: 'running' | 'completed' | 'failed' | 'cancelled';
+  progress: number;
+  message?: string;
+  error?: string;
+  result?: ConversionResult;
+}
+
+interface MediaCapabilities extends MediaContract {
   backend: Record<string, unknown>;
   tools: Record<string, boolean>;
 }
@@ -145,7 +138,14 @@ interface MirFeatures {
   channelPolicy?: string;
   /** Processing engine provenance, currently Aural for native jobs. */
   engine?: string;
+  spectralCentroidHz?: number;
+  spectralBandwidthHz?: number;
+  spectralRolloffHz?: number;
+  spectralFlatness?: number;
+  spectralFlux?: number;
 }
+
+type AnalysisProfile = 'quick' | 'spectral';
 
 interface BackendStatus {
   status: 'ok' | 'degraded' | 'unavailable';
@@ -237,27 +237,6 @@ interface BlendHeader {
   pointerSize: number;
   byteOrder: string;
   version: string;
-}
-
-interface QuizQuestion {
-  id: string;
-  topic: string;
-  question: string;
-  answer: string;
-  explanation: string;
-  difficulty: string;
-  tags: string[];
-}
-
-interface QuizCollection {
-  id: string;
-  title: string;
-  shortTitle: string;
-  description: string;
-  tone: string;
-  icon: string;
-  level: string;
-  questions: QuizQuestion[];
 }
 
 export {};

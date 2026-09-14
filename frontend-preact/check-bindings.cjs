@@ -29,6 +29,9 @@ const optionalMedia = new Set([
   'writeText',
   'planConversion',
   'convertMedia',
+  'startMediaConversion',
+  'getMediaConversionStatus',
+  'cancelMediaConversion',
   'getMediaCapabilities',
   'htmlToText'
 ]);

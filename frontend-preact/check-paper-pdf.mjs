@@ -1,7 +1,10 @@
-import { NOTE_PDF_EXPORTERS } from './src/plugins/note-pdf.js';
+import { PDFDocument } from 'pdf-lib';
+import { NOTE_PDF_EXPORTERS, renderBlocks } from './src/plugins/note-pdf.js';
 import { samplePaper } from './src/plugins/paper-data.js';
 import {
   generatePaperPdfBytes,
+  PAPER_PDF_LAYOUTS,
+  paperBlocks,
   paperPdfFileName
 } from './src/plugins/paper-pdf.js';
 
@@ -20,6 +23,14 @@ check(
   'paper filename derives from title',
   paperPdfFileName({ title: 'Hello, World!' }) === 'hello-world.pdf'
 );
+check(
+  'paper exposes single- and two-column layouts',
+  PAPER_PDF_LAYOUTS.map((layout) => layout.id).join(',') === 'single,double'
+);
+check(
+  'paper body starts after the full-width academic front matter',
+  paperBlocks(samplePaper).some((block) => block.type === 'columnsStart')
+);
 
 for (const exporter of NOTE_PDF_EXPORTERS) {
   const bytes = await generatePaperPdfBytes(exporter.id, samplePaper);
@@ -28,6 +39,14 @@ for (const exporter of NOTE_PDF_EXPORTERS) {
     bytes.length > 0 &&
       Buffer.from(bytes.slice(0, 5)).toString() === '%PDF-',
     `bytes=${bytes.length}`
+  );
+}
+
+for (const layout of PAPER_PDF_LAYOUTS) {
+  const bytes = await generatePaperPdfBytes('jspdf', samplePaper, layout.id);
+  check(
+    `jsPDF renders ${layout.label.toLowerCase()} academic layout`,
+    bytes.length > 0 && Buffer.from(bytes.slice(0, 5)).toString() === '%PDF-'
   );
 }
 
@@ -66,6 +85,23 @@ check(
   fallback.length > 0 &&
     Buffer.from(fallback.slice(0, 5)).toString() === '%PDF-'
 );
+
+// The columnsStart marker must be inert outside the two-column jsPDF flow:
+// stripping it changes nothing in any single-column engine.
+for (const exporter of NOTE_PDF_EXPORTERS) {
+  const full = await generatePaperPdfBytes(exporter.id, samplePaper);
+  const stripped = await renderBlocks(
+    exporter.id,
+    paperBlocks(samplePaper).filter((block) => block.type !== 'columnsStart')
+  );
+  const fullPages = (await PDFDocument.load(full)).getPageCount();
+  const strippedPages = (await PDFDocument.load(stripped)).getPageCount();
+  check(
+    `${exporter.id} ignores the columnsStart marker`,
+    fullPages === strippedPages,
+    `${fullPages} vs ${strippedPages} pages`
+  );
+}
 
 if (failures > 0) process.exit(1);
 console.log('paper pdf: all tests passed');

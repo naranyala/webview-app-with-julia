@@ -7,7 +7,7 @@
     "build": "npm run check && npm run check:bindings && node build.cjs",
     "check": "node node_modules/@biomejs/biome/bin/biome check .",
     "check:bindings": "node check-bindings.cjs",
-    "test": "node check-backend-errors.mjs && node check-quiz-data.mjs && node check-qna.mjs && node check-note-markdown.mjs && node check-seed-essays.mjs && node check-todo-calendar.mjs && node check-schemas.mjs && node check-paper.mjs && node check-mir.mjs && node check-assets.mjs && node check-indonesia-map.mjs && node check-autosave.mjs && node check-note-search.mjs && node check-note-search-benchmark.mjs && node check-note-pdf.mjs && node check-note-pdf-benchmark.mjs && node check-paper-pdf.mjs && node check-paper-pdf-benchmark.mjs && npm run test:components",
+    "test": "node check-backend-errors.mjs && node check-qna.mjs && node check-note-markdown.mjs && node check-seed-essays.mjs && node check-todo-calendar.mjs && node check-schemas.mjs && node check-shortcuts.mjs && node check-backend-health.mjs && node check-note-backup.mjs && node check-paper.mjs && node check-paper-extensions.mjs && node check-mir.mjs && node check-assets.mjs && node check-indonesia-map.mjs && node check-autosave.mjs && node check-note-search.mjs && node check-note-search-benchmark.mjs && node check-note-pdf.mjs && node check-note-pdf-benchmark.mjs && node check-paper-pdf.mjs && node check-paper-pdf-benchmark.mjs && npm run test:components",
     "test:components": "node node_modules/vitest/vitest.mjs run",
     "check:write": "node node_modules/@biomejs/biome/bin/biome check --write .",
     "benchmark:notes": "node benchmark-notes-search.mjs",

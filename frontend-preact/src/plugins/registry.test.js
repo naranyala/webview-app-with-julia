@@ -9,9 +9,9 @@ describe('frontend plugin registry', () => {
       'tabs',
       'paper',
       'mir',
+      'media',
       'map',
       'notes',
-      'quiz',
       'blender',
       'todo'
     ]);

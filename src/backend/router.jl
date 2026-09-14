@@ -13,15 +13,6 @@ const HANDLERS = Dict{String,Function}(
     "updateNote"            => _update_note,
     "deleteNote"            => _delete_note,
     "savePdf"               => _save_pdf,
-    "quizList"              => _quiz_list,
-    "quizCreateCollection"  => _quiz_create_collection,
-    "quizUpdateCollection"  => _quiz_update_collection,
-    "quizDeleteCollection"  => _quiz_delete_collection,
-    "quizCreateQuestion"    => _quiz_create_question,
-    "quizUpdateQuestion"    => _quiz_update_question,
-    "quizDeleteQuestion"    => _quiz_delete_question,
-    "quizExport"            => _quiz_export,
-    "quizImport"            => _quiz_import,
     "generatePdf"           => _generate_pdf,
     "mirAnalyze"            => _mir_analyze,
     "listVolumes"           => _list_volumes,
@@ -44,9 +35,44 @@ const HANDLERS = Dict{String,Function}(
     "writeText"             => _write_text,
     "planConversion"        => _plan_conversion,
     "convertMedia"          => _convert_media,
+    "startMediaConversion" => _start_media_conversion,
+    "getMediaConversionStatus" => _get_media_conversion_status,
+    "cancelMediaConversion" => _cancel_media_conversion,
     "getMediaCapabilities"  => _get_media_capabilities,
     "htmlToText"            => _html_to_text,
 )
+const RESERVED_SHELL_BINDINGS = Set((
+    "minimizeWindow",
+    "maximizeWindow",
+    "restoreWindow",
+    "closeWindow",
+))
+
+"""Register an application/plugin RPC handler before the native shell starts.
+
+Plugin handlers receive the decoded argument vector and must return the same
+`(status, json)` tuple as built-in handlers. Existing bindings are protected
+unless `replace=true` is explicitly requested by the host.
+"""
+function register_handler!(name::AbstractString, handler::Function; replace::Bool=false)
+    key = strip(String(name))
+    isempty(key) && throw(ArgumentError("handler name must not be empty"))
+    key in RESERVED_SHELL_BINDINGS &&
+        throw(ArgumentError("handler name is reserved by the native shell: $key"))
+    (!replace && haskey(HANDLERS, key)) &&
+        throw(ArgumentError("handler already registered: $key"))
+    HANDLERS[key] = handler
+    key
+end
+
+function unregister_handler!(name::AbstractString)
+    key = String(name)
+    haskey(HANDLERS, key) || return false
+    delete!(HANDLERS, key)
+    true
+end
+
+handler_names() = sort!(collect(keys(HANDLERS)))
 
 """
     handle_request(name::String, payload::String) -> (status::Int, result::String)
@@ -79,5 +105,4 @@ function __init__()
         STATE.storage_errors["config"] = sprint(showerror, error)
     end
     STATE.notes = _load_store(NOTES_STORE, "notes")
-    STATE.quizzes = _load_store(QUIZZES_STORE, "quizzes")
 end

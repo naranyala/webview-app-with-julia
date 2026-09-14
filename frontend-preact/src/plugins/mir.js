@@ -78,7 +78,16 @@ export function describeFeatures(features) {
       : features.zcr < 0.15
         ? 'midrange-focused'
         : 'bright / noisy / transient-rich';
-  return `${loudness}; ${brightness}`;
+  const spectral = [];
+  if (Number.isFinite(features.spectralCentroidHz))
+    spectral.push(`centroid ${Math.round(features.spectralCentroidHz)} Hz`);
+  if (Number.isFinite(features.spectralRolloffHz))
+    spectral.push(`rolloff ${Math.round(features.spectralRolloffHz)} Hz`);
+  if (Number.isFinite(features.spectralFlatness))
+    spectral.push(`flatness ${features.spectralFlatness.toFixed(3)}`);
+  if (Number.isFinite(features.spectralFlux))
+    spectral.push(`flux ${features.spectralFlux.toFixed(3)}`);
+  return `${loudness}; ${brightness}${spectral.length ? `; ${spectral.join(', ')}` : ''}`;
 }
 
 // Downsample by stride instead of interpolation so the native analysis sees

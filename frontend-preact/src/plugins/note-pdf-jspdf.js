@@ -3,20 +3,39 @@ import { figureLabel, imageMime } from './note-pdf-render-utils.js';
 
 const HEADING_SIZES = { 1: 16, 2: 14, 3: 13, 4: 12 };
 
-export function renderJspdf(blocks) {
+export function renderJspdf(blocks, options = {}) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const state = {
     margin: 52,
+    x: 52,
     maxWidth: 0,
     pageHeight: doc.internal.pageSize.getHeight(),
-    y: 72
+    pageWidth: doc.internal.pageSize.getWidth(),
+    y: 72,
+    columns: 1,
+    column: 0,
+    columnGap: 24,
+    columnTop: 52
   };
-  state.maxWidth = doc.internal.pageSize.getWidth() - state.margin * 2;
+  state.maxWidth = state.pageWidth - state.margin * 2;
+
+  const nextFlowRegion = () => {
+    if (state.columns === 2 && state.column === 0) {
+      state.column = 1;
+      state.x = state.margin + state.maxWidth + state.columnGap;
+      state.y = state.columnTop;
+      return;
+    }
+    doc.addPage();
+    state.column = 0;
+    state.x = state.margin;
+    state.y = state.margin;
+    state.columnTop = state.margin;
+  };
 
   const ensure = (height) => {
     if (state.y + height > state.pageHeight - state.margin) {
-      doc.addPage();
-      state.y = state.margin;
+      nextFlowRegion();
     }
   };
 
@@ -50,25 +69,28 @@ export function renderJspdf(blocks) {
   // entry and moves past the last line on exit.
   const richPara = (spans, options = {}) => {
     const { x = 0, size = 11, color = [55, 56, 62], lineHeight = 17 } = options;
-    const lineStart = state.margin + x;
-    const maxX = state.margin + state.maxWidth;
-    let cx = lineStart;
+    const lineStart = () => state.x + x;
+    const maxX = () => state.x + state.maxWidth;
+    let cx = lineStart();
     doc.setTextColor(color[0], color[1], color[2]);
     const newLine = () => {
       state.y += lineHeight;
       if (state.y > state.pageHeight - state.margin) {
-        doc.addPage();
-        state.y = state.margin;
+        nextFlowRegion();
       }
-      cx = lineStart;
+      cx = lineStart();
     };
     const drawToken = (token, span) => {
       const active = styleFor(span, size);
       let rest = token;
       while (rest) {
-        const avail = maxX - cx;
+        const avail = maxX() - cx;
         const width = doc.getTextWidth(rest);
-        if (width <= avail || cx === lineStart) {
+        if (width > avail && cx !== lineStart()) {
+          newLine();
+          continue;
+        }
+        if (width <= avail || cx === lineStart()) {
           if (span.c) codeBg(rest, cx, active);
           doc.text(rest, cx, state.y);
           cx += width;
@@ -98,8 +120,8 @@ export function renderJspdf(blocks) {
         if (!token) continue;
         if (/^\s+$/.test(token)) {
           styleFor(span, size);
-          if (cx === lineStart) continue;
-          if (cx + doc.getTextWidth(' ') > maxX) {
+          if (cx === lineStart()) continue;
+          if (cx + doc.getTextWidth(' ') > maxX()) {
             newLine();
             continue;
           }
@@ -120,10 +142,9 @@ export function renderJspdf(blocks) {
     ensure(lines.length * 17);
     for (const line of lines) {
       if (state.y > state.pageHeight - state.margin) {
-        doc.addPage();
-        state.y = state.margin;
+        nextFlowRegion();
       }
-      doc.text(line, state.margin, state.y);
+      doc.text(line, state.x, state.y);
       state.y += 17;
     }
   };
@@ -159,30 +180,44 @@ export function renderJspdf(blocks) {
     }
     for (const line of lines) {
       if (state.y + lineHeight > state.pageHeight - state.margin) {
-        doc.addPage();
-        state.y = state.margin;
+        nextFlowRegion();
       }
       doc.setFillColor(242, 243, 245);
-      doc.rect(state.margin, state.y, state.maxWidth, lineHeight, 'F');
+      doc.rect(state.x, state.y, state.maxWidth, lineHeight, 'F');
       doc.setTextColor(40, 41, 46);
-      doc.text(line || ' ', state.margin + pad, state.y + 10);
+      doc.text(line || ' ', state.x + pad, state.y + 10);
       state.y += lineHeight;
     }
     state.y += 6;
   };
 
   for (const block of blocks) {
+    if (block.type === 'columnsStart') {
+      if (options.columns === 2 && state.columns === 1) {
+        state.columns = 2;
+        state.column = 0;
+        state.columnTop = state.y + 6;
+        state.y = state.columnTop;
+        state.x = state.margin;
+        state.maxWidth =
+          (state.pageWidth - state.margin * 2 - state.columnGap) / 2;
+      }
+      continue;
+    }
     if (block.type === 'pageBreak') {
       if (state.y > state.margin + 1) {
         doc.addPage();
+        state.column = 0;
+        state.x = state.margin;
         state.y = state.margin;
+        state.columnTop = state.margin;
       }
       continue;
     }
     if (block.type === 'rule') {
       state.y += 14;
       doc.setDrawColor(220, 221, 224);
-      doc.line(state.margin, state.y, state.margin + state.maxWidth, state.y);
+      doc.line(state.x, state.y, state.x + state.maxWidth, state.y);
       state.y += 14;
       continue;
     }
@@ -193,7 +228,7 @@ export function renderJspdf(blocks) {
       const lines = doc.splitTextToSize(block.text, state.maxWidth);
       ensure(lines.length * 30);
       for (const line of lines) {
-        doc.text(line, state.margin, state.y);
+        doc.text(line, state.x, state.y);
         state.y += 30;
       }
       state.y += 6;
@@ -208,7 +243,7 @@ export function renderJspdf(blocks) {
       const lines = doc.splitTextToSize(block.text, state.maxWidth);
       ensure(lines.length * (size + 6));
       for (const line of lines) {
-        doc.text(line, state.margin, state.y);
+        doc.text(line, state.x, state.y);
         state.y += size + 6;
       }
       state.y += 4;
@@ -219,7 +254,7 @@ export function renderJspdf(blocks) {
       doc.setFontSize(9);
       doc.setTextColor(110, 112, 120);
       ensure(14);
-      doc.text(block.text, state.margin, state.y);
+      doc.text(block.text, state.x, state.y);
       state.y += 14;
       continue;
     }
@@ -229,7 +264,7 @@ export function renderJspdf(blocks) {
       doc.setFontSize(10);
       doc.setTextColor(138, 109, 47);
       ensure(16);
-      doc.text(block.text, state.margin, state.y);
+      doc.text(block.text, state.x, state.y);
       state.y += 16;
       continue;
     }
@@ -248,7 +283,7 @@ export function renderJspdf(blocks) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(138, 109, 47);
-      doc.text(figureLabel(block), state.margin, state.y);
+      doc.text(figureLabel(block), state.x, state.y);
       state.y += 14;
       const mime = imageMime(block.figure?.dataUrl);
       let embedded = false;
@@ -260,7 +295,7 @@ export function renderJspdf(blocks) {
           doc.addImage(
             block.figure.dataUrl,
             mime === 'png' ? 'PNG' : 'JPEG',
-            state.margin,
+            state.x,
             state.y,
             state.maxWidth,
             height
@@ -274,18 +309,18 @@ export function renderJspdf(blocks) {
       if (!embedded) {
         ensure(56);
         doc.setFillColor(242, 243, 245);
-        doc.rect(state.margin, state.y, state.maxWidth, 56, 'F');
+        doc.rect(state.x, state.y, state.maxWidth, 56, 'F');
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.setTextColor(110, 112, 120);
         doc.text(
           'Vector preview lives in the reader.',
-          state.margin + 6,
+          state.x + 6,
           state.y + 24
         );
         doc.text(
           'Upload PNG or JPEG to embed raster art.',
-          state.margin + 6,
+          state.x + 6,
           state.y + 38
         );
         state.y += 62;
@@ -297,7 +332,7 @@ export function renderJspdf(blocks) {
         const lines = doc.splitTextToSize(block.caption, state.maxWidth);
         ensure(lines.length * 13);
         for (const line of lines) {
-          doc.text(line, state.margin, state.y);
+          doc.text(line, state.x, state.y);
           state.y += 13;
         }
         state.y += 2;
@@ -311,7 +346,7 @@ export function renderJspdf(blocks) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(11);
         doc.setTextColor(55, 56, 62);
-        doc.text(prefix, state.margin, state.y);
+        doc.text(prefix, state.x, state.y);
         richPara(spans, { x: 16 });
       });
       state.y += 2;
@@ -323,7 +358,7 @@ export function renderJspdf(blocks) {
       richPara(block.spans, { x: 10, color: [85, 86, 94] });
       if (doc.getNumberOfPages() === pagesBefore) {
         doc.setDrawColor(136, 136, 136);
-        doc.line(state.margin + 2, top - 11, state.margin + 2, state.y - 6);
+        doc.line(state.x + 2, top - 11, state.x + 2, state.y - 6);
       }
       state.y += 2;
       continue;
@@ -335,12 +370,25 @@ export function renderJspdf(blocks) {
     ensure(lines.length * 17);
     for (const line of lines) {
       if (state.y > state.pageHeight - state.margin) {
-        doc.addPage();
-        state.y = state.margin;
+        nextFlowRegion();
       }
-      doc.text(line, state.margin, state.y);
+      doc.text(line, state.x, state.y);
       state.y += 17;
     }
+  }
+
+  const pageCount = doc.getNumberOfPages();
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    doc.setPage(pageNumber);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(110, 112, 120);
+    doc.text(
+      `${pageNumber} / ${pageCount}`,
+      state.pageWidth / 2,
+      state.pageHeight - 24,
+      { align: 'center' }
+    );
   }
 
   return new Uint8Array(doc.output('arraybuffer'));

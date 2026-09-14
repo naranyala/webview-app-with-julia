@@ -2,14 +2,12 @@ import * as stylex from '@stylexjs/stylex';
 import { contentStyles } from './stylex-content.js';
 import { foundationStyles } from './stylex-foundation.js';
 import { mediaStyles } from './stylex-media.js';
-import { quizStyles } from './stylex-quiz.js';
 import { taskStyles } from './stylex-tasks.js';
 
 export const styles = {
   ...foundationStyles,
   ...contentStyles,
   ...mediaStyles,
-  ...quizStyles,
   ...taskStyles
 };
 
@@ -33,13 +31,10 @@ const aliases = {
   'tab-label': 'tabLabel',
   'tab-dot': 'tabDot',
   'tools-panel': 'sidePanel',
-  'quiz-panel': 'sidePanel',
   'tools-group-label': 'groupLabel',
   'tools-item': 'sideItem',
   'tools-item-glyph': 'sideGlyph',
   'tools-item-copy': 'sideCopy',
-  'quiz-shell': 'quizShell',
-  'quiz-layout': 'quizLayout',
   'map-page': 'mapPage',
   'map-layout': 'mapLayout',
   'map-panel': 'mapPanel',
@@ -83,38 +78,6 @@ const aliases = {
   'map-selection-type': 'mapSelectionType',
   'map-selection-name': 'mapSelectionName',
   'map-source': 'mapSource',
-  'quiz-header': 'quizHeader',
-  'quiz-score': 'quizScore',
-  'quiz-collection-row': 'quizCollection',
-  'quiz-editor-toolbar': 'quizToolbar',
-  'quiz-editor-summary': 'quizSummary',
-  'quiz-editor-list': 'quizEditorList',
-  'quiz-editor-row': 'quizEditorRow',
-  'quiz-editor-number': 'quizNumber',
-  'quiz-select-wrap': 'sideCopy',
-  'quiz-search': 'searchInput',
-  'quiz-collection-mark': 'quizMark',
-  'quiz-collection-copy': 'quizCopy',
-  'quiz-reset-button': 'quizButton',
-  'quiz-secondary-button': 'quizButton',
-  'quiz-known-button': 'quizButton',
-  'quiz-primary-button': 'quizButton',
-  'quiz-reveal': 'quizButton',
-  'quiz-progress': 'quizProgress',
-  'quiz-progress-track': 'quizProgressTrack',
-  'quiz-main-grid': 'quizGrid',
-  'quiz-card': 'quizCard',
-  'quiz-index-card': 'quizIndex',
-  'quiz-card-topline': 'quizTopline',
-  'quiz-difficulty': 'difficulty',
-  'quiz-card-kicker': 'quizKicker',
-  'quiz-answer': 'quizAnswer',
-  'quiz-answer-label': 'quizAnswerLabel',
-  'quiz-explanation': 'quizExplanation',
-  'quiz-card-actions': 'quizActions',
-  'quiz-question-list': 'quizQuestions',
-  'quiz-question-row': 'quizQuestion',
-  'quiz-empty': 'empty',
   'launcher-main': 'launcher',
   'launcher-head': 'toolHeading',
   'tool-list': 'toolList',
@@ -196,6 +159,17 @@ const aliases = {
   'backend-status-value': 'backendValue',
   'backend-status-actions': 'backendActions',
   'backend-status-error': 'backendError',
+  'async-notice': 'asyncNotice',
+  'async-loading': 'asyncLoading',
+  'async-success': 'asyncSuccess',
+  'async-error': 'asyncError',
+  'media-inspector-grid': 'mediaInspectorGrid',
+  'media-path-input': 'mediaPathInput',
+  'media-actions': 'mediaActions',
+  'media-details': 'mediaDetails',
+  'media-route': 'mediaRoute',
+  'media-preview-panel': 'mediaPreviewPanel',
+  'media-preview': 'mediaPreview',
   'toggle-all': 'todoToggleAll',
   'todo-list': 'todoList',
   'todo-checkbox': 'todoCheckbox',
@@ -223,6 +197,8 @@ const aliases = {
   'content-title': 'contentTitle',
   'content-body': 'contentBody',
   scrim: 'scrim',
+  divider: 'divider',
+  'sidebar-group': 'sidebarGroup',
   'home-page': 'homePage',
   'home-hero': 'homeHero',
   'home-hero-copy': 'homeHeroCopy',
@@ -263,7 +239,12 @@ const aliases = {
   'seg-button': 'segButton',
   'essay-input': 'essayInput',
   'idea-input': 'ideaInput',
-  'preview-article': 'previewArticle'
+  'preview-article': 'previewArticle',
+  'essay-frame': 'essayFrame',
+  'map-frame': 'mapFrame',
+  'frame-pane': 'framePane',
+  'frame-divider': 'frameDivider',
+  'frame-divider-wide': 'frameDividerWide'
 };
 
 export function sx(...classNames) {

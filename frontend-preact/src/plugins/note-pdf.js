@@ -332,6 +332,7 @@ async function renderPdfLib(blocks) {
   };
 
   for (const block of blocks) {
+    if (block.type === 'columnsStart') continue;
     if (block.type === 'pageBreak') {
       if (state.y > margin + 1) {
         newPage();
@@ -653,7 +654,7 @@ async function renderPdfmake(blocks) {
       });
     } else if (block.type === 'label') {
       content.push({ text: block.text, style: 'sectionLabel' });
-    } else {
+    } else if (block.type !== 'columnsStart') {
       content.push({ text: block.text, fontSize: 11, color: '#37383e' });
     }
   }
@@ -673,14 +674,14 @@ async function renderPdfmake(blocks) {
   return new Uint8Array(buffer);
 }
 
-export async function renderBlocks(exporterId, blocks) {
+export async function renderBlocks(exporterId, blocks, options = {}) {
   switch (exporterId) {
     case 'pdf-lib':
       return renderPdfLib(blocks);
     case 'pdfmake':
       return renderPdfmake(blocks);
     default:
-      return renderJspdf(blocks);
+      return renderJspdf(blocks, options);
   }
 }
 

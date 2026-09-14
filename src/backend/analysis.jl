@@ -3,8 +3,10 @@
 function _mir_analyze(args)
     length(args) >= 2 || return _err("InvalidAudioInput", "Samples and sample rate are required")
     samples, sample_rate = args[1], args[2]
+    profile = length(args) >= 3 ? args[3] : "quick"
+    profile isa AbstractString || return _err("InvalidAudioInput", "Analysis profile must be text")
     try
-        _ok(AudioAnalysisAdapter.analyze_samples(samples, sample_rate))
+        _ok(AudioAnalysisAdapter.analyze_samples(samples, sample_rate; profile=profile))
     catch error
         error isa AudioAnalysisAdapter.AudioTooLargeError &&
             return _err("AudioTooLarge", sprint(showerror, error))
@@ -206,7 +208,9 @@ function _audio_analysis_internal(args)
     path, path_error = _validate_read_path(args[1], "Audio")
     path_error !== nothing && return _err(path_error...)
     try
-        values = AudioAnalysisAdapter.analyze_file(path; max_frames=262144)
+        profile = length(args) >= 2 ? args[2] : "quick"
+        profile isa AbstractString || return _err("InvalidArgument", "Analysis profile must be text")
+        values = AudioAnalysisAdapter.analyze_file(path; max_frames=262144, profile=profile)
         # Keep Julia's snake_case fields and add the frontend's camelCase
         # aliases during the migration; consumers can move independently.
         values["durationSec"] = values["duration_seconds"]
@@ -242,10 +246,10 @@ function _audio_job_response(job_id::AbstractString)
     response
 end
 
-function _run_audio_analysis(job_id::AbstractString, path::AbstractString)
+function _run_audio_analysis(job_id::AbstractString, path::AbstractString, profile::AbstractString)
     try
         Jobs.update_job!(STATE.jobs, job_id; message="Reading audio file")
-        result = AudioAnalysisAdapter.analyze_file(path; max_frames=262144)
+        result = AudioAnalysisAdapter.analyze_file(path; max_frames=262144, profile=profile)
         result["durationSec"] = result["duration_seconds"]
         result["sampleRate"] = result["sample_rate"]
         result["sampleCount"] = result["sample_count"]
@@ -259,14 +263,17 @@ function _start_audio_analysis(args)
     length(args) >= 1 || return _err("InvalidArgument", "Audio path is required")
     path, path_error = _validate_read_path(args[1], "Audio")
     path_error !== nothing && return _err(path_error...)
+    profile = length(args) >= 2 ? args[2] : "quick"
+    profile isa AbstractString || return _err("InvalidArgument", "Analysis profile must be text")
+    profile in ("quick", "spectral") || return _err("InvalidArgument", "Analysis profile must be quick or spectral")
     Jobs.cleanup!(STATE.jobs)
     job_id = try
-        Jobs.create_job!(STATE.jobs; kind="audio-analysis", metadata=Dict("path" => path))
+        Jobs.create_job!(STATE.jobs; kind="audio-analysis", metadata=Dict("path" => path, "profile" => profile))
     catch error
         return _err("JobLimitReached", sprint(showerror, error))
     end
     STATE.audio_jobs[job_id] = path
-    Threads.@spawn _run_audio_analysis(job_id, path)
+    Threads.@spawn _run_audio_analysis(job_id, path, profile)
     _ok(_audio_job_response(job_id))
 end
 

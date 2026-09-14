@@ -11,7 +11,7 @@ using WebViewApp
     @test calculate_fibonacci(10) == Dict("input" => 10, "result" => 55)
     @test calculate_fibonacci("12") == Dict("input" => 12, "result" => 144)
     @test_throws ArgumentError calculate_fibonacci(51)
-    @test occursin("<title>WebView App</title>", frontend_html())
+    @test occursin("<title>WebView Workbench</title>", frontend_html())
     @test occursin("<div id=\"app\"></div>", frontend_html())
 end
 

@@ -24,7 +24,7 @@ in [Getting started](getting-started.md).
 | Binding | Behavior |
 | --- | --- |
 | Diagnostics | Counter, reset, status, system information, and timestamp. |
-| Notes and quizzes | Persistent note CRUD, quiz collection/question CRUD, validated JSON import/export, and PDF export. |
+| Notes and exports | Persistent note CRUD and PDF export. |
 | MIR/audio | Bounded sample analysis plus Aural-backed WAV metadata and file analysis jobs. |
 | Assets | Volume discovery and cancellable bounded scans. |
 | Documents | BibTeX parsing, Blender header inspection, and native PDF generation. |
@@ -50,15 +50,14 @@ The adapter exposes the following groups:
 | --- | --- |
 | Diagnostics | `increment`, `reset`, `getSystemInfo`, `getTimestamp`, `getStatus` |
 | Notes and exports | `getNotes`, `createNote`, `updateNote`, `deleteNote`, `savePdf` |
-| Quiz storage | `quizList`, collection CRUD, question CRUD, `quizImport`, `quizExport` |
 | MIR | `mirAnalyze` |
 | Studio assets | `listVolumes`, `startAssetScan`, `getAssetScanStatus`, `cancelAssetScan`, `getAudioMetadata`, `analyzeAudio` |
 | Audio jobs | `startAudioAnalysis`, `getAudioAnalysisStatus`, `cancelAudioAnalysis` |
 | Window actions | `minimizeWindow`, `maximizeWindow`, `restoreWindow`, `closeWindow` |
 
-In browser/mock mode, notes and quiz data are kept in local storage when it is
-available, with an in-memory fallback. MIR analysis uses the JavaScript mirror;
-asset and audio calls use deterministic mock responses or mock errors.
+In browser/mock mode, note data is kept in local storage when it is available,
+with an in-memory fallback. MIR analysis uses the JavaScript mirror; asset and
+audio calls use deterministic mock responses or mock errors.
 
 ## Error handling
 
@@ -79,18 +78,44 @@ audio analysis report `running`, `completed`, `failed`, or `cancelled` snapshots
 workers must check cancellation between units of work. Terminal jobs are bounded
 by age and count.
 
-`src/Persistence.jl` stores notes and quizzes in versioned JSON envelopes. It
-still reads the earlier raw-array format, limits serialized size, writes through
-a same-directory temporary file, and raises typed errors for corrupt,
+`src/Persistence.jl` stores notes in a versioned JSON envelope. It still reads
+the earlier raw-array format, limits serialized size, writes through a
+same-directory temporary file, and raises typed errors for corrupt,
 unavailable, unsupported, or oversized data. Backend mutations persist a
 candidate copy before replacing in-memory state.
 
 Read-only audio and Blender paths are canonicalized and must resolve beneath the
-home directory or a discovered volume root. Quiz import accepts validated JSON
-content rather than an arbitrary native path; exports are confined to
+home directory or a discovered volume root. PDF exports are confined to
 `~/Documents/`.
+
+`generatePdf` renders a native academic PDF from `(filename, title, body)`:
+`#`-prefixed lines become bold section headings and the remaining text is
+wrapped into one column by default. An optional fourth argument selects the
+layout — `"single"` (default), `"two-column"`, or `"double"` (alias) — which
+keeps the title block full-width and flows the body through two columns.
+Anything else returns `InvalidArgument`. The rich frontend paper pipeline
+(`paper-pdf.js` layout selector across jsPDF/pdf-lib/pdfmake, plus the
+two-column print CSS) covers full papers with figures, citations, and
+references; `generatePdf` is the lightweight native fallback.
 
 `frontend-preact/src/bindings.d.ts`, `backend.js`, and `check-bindings.cjs` are
 kept aligned with `bin/webview_app.jl`. Run
 `npm --prefix frontend-preact run check:bindings` to verify all registered
 names. Browser mode remains available through the adapter's mocks.
+
+### Plugin extension points
+
+Frontend paper-content extensions are registered with
+`registerPaperExtension({ id, matches, renderHtml })`. The built-in Mermaid and
+MathJax adapters render readable escaped source offline, then enhance it when a
+host supplies `globalThis.mermaid` or `globalThis.MathJax`.
+
+Julia integrations can register an RPC handler during startup with
+`Backend.register_handler!(name, handler)`. A handler receives the decoded
+argument vector and returns `(status, json)`; `handler_names()` exposes the
+registered names for a shell or plugin manifest, and
+`unregister_handler!` removes a plugin handler. The native launcher includes
+startup-registered names automatically; a handler added after the WebView has
+started still needs an explicit native binding registration by the shell. The
+window-action names (`minimizeWindow`, `maximizeWindow`, `restoreWindow`, and
+`closeWindow`) remain reserved for the shell.

@@ -46,12 +46,8 @@ function _create_note(args)
     )
     candidate = copy(STATE.notes)
     push!(candidate, note)
-    try
-        _save_notes(candidate)
-    catch error
-        return _storage_failure(error, "Storage")
-    end
     STATE.notes = candidate
+    _schedule_persist("notes", candidate)
     _ok(note)
 end
 
@@ -67,12 +63,8 @@ function _update_note(args)
     note["tag"] = tag
     note["body"] = body
     note["updated"] = _now()
-    try
-        _save_notes(candidate)
-    catch error
-        return _storage_failure(error, "Storage")
-    end
     STATE.notes = candidate
+    _schedule_persist("notes", candidate)
     _ok(note)
 end
 
@@ -83,11 +75,7 @@ function _delete_note(args)
     idx === nothing && return _err("NoteNotFound", "Note $id not found")
     candidate = copy(STATE.notes)
     deleteat!(candidate, idx)
-    try
-        _save_notes(candidate)
-    catch error
-        return _storage_failure(error, "Storage")
-    end
     STATE.notes = candidate
+    _schedule_persist("notes", candidate)
     _ok(nothing)
 end

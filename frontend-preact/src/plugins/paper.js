@@ -8,6 +8,7 @@ import {
   FIGURE_BLOCK_PATTERN,
   parseMarkdown
 } from './note-markdown.js';
+import { paperBlocksToHtml, parsePaperMarkdown } from './paper-extensions.js';
 
 export const CITATION_PATTERN = /\[@([\w-]+)\]/g;
 export const PAPER_STATUSES = Object.freeze(['draft', 'final']);
@@ -310,7 +311,7 @@ export function paperStats(paper) {
 export function paperContentHtml(paper, resolved, columnsClass = '') {
   const figures = resolveFigures(paper);
   const renderBody = (body) =>
-    blocksToHtml(enrichFigureBlocks(parseMarkdown(body), figures));
+    paperBlocksToHtml(enrichFigureBlocks(parsePaperMarkdown(body), figures));
   const authors = (paper.authors || [])
     .map(
       (author) =>
@@ -351,8 +352,8 @@ export function paperContentHtml(paper, resolved, columnsClass = '') {
     (venue ? `<p class="paper-venue">${escapeHtml(venue)}</p>` : '') +
     '</header>' +
     `<div class="paper-abstract"><h3>Abstract</h3>` +
-    blocksToHtml(
-      enrichFigureBlocks(parseMarkdown(resolved.abstract || '—'), figures)
+    paperBlocksToHtml(
+      enrichFigureBlocks(parsePaperMarkdown(resolved.abstract || '—'), figures)
     ) +
     (keywords ? `<div class="paper-keywords">${keywords}</div>` : '') +
     '</div>' +
@@ -389,6 +390,11 @@ export const PAPER_SCREEN_CSS =
   '.paper-reading .paper-body pre{background:var(--wb-surface-alt);border:1px solid var(--wb-border-strong);border-radius:8px;padding:.7rem .8rem;margin:0 0 .8rem;white-space:pre-wrap;overflow-wrap:anywhere;break-inside:avoid}' +
   '.paper-reading .paper-body pre code{display:block;font:0.8rem/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--wb-text)}' +
   '.paper-reading figure{margin:0 0 .9rem;break-inside:avoid}' +
+  '.paper-reading .paper-diagram{margin:.8rem 0 1rem;break-inside:avoid}' +
+  '.paper-reading .paper-diagram svg{display:block;max-width:100%;height:auto;background:var(--wb-surface-alt);border-radius:8px}' +
+  '.paper-reading .paper-diagram-source{display:block}' +
+  '.paper-reading .paper-math{margin:.7rem 0;text-align:center;overflow-x:auto;break-inside:avoid}' +
+  '.paper-reading .paper-math-source{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--wb-text-secondary)}' +
   '.paper-reading .fig-num{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--wb-green);margin:0 0 .3rem}' +
   '.paper-reading figure svg,.paper-reading figure img{display:block;max-width:100%;height:auto;background:var(--wb-surface-alt);border-radius:8px}' +
   '.paper-reading figcaption{font-size:.8rem;color:var(--wb-text-secondary);margin:.35rem 0 0;font-family:inherit}' +
@@ -429,6 +435,11 @@ export const PAPER_PRINT_CSS =
   '#paper-print-root pre code{display:block;font:8.5pt/1.45 ui-monospace,Menlo,Consolas,monospace}' +
   '#paper-print-root p code,#paper-print-root li code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:9.5pt;background:#f2f3f5!important;padding:0 2pt}' +
   '#paper-print-root figure{margin:0 0 8pt;break-inside:avoid}' +
+  '#paper-print-root .paper-diagram{margin:0 0 8pt;break-inside:avoid}' +
+  '#paper-print-root .paper-diagram-source{display:block}' +
+  '#paper-print-root .paper-diagram-source pre{margin:0}' +
+  '#paper-print-root .paper-math{margin:6pt 0;text-align:center;break-inside:avoid}' +
+  '#paper-print-root .paper-math-source{font-family:ui-monospace,Menlo,Consolas,monospace}' +
   '#paper-print-root .fig-num{font-size:9pt;letter-spacing:.06em;text-transform:uppercase;margin:0 0 3pt}' +
   '#paper-print-root figure svg,#paper-print-root figure img{display:block;max-width:100%;height:auto}' +
   '#paper-print-root figcaption{font-size:9pt;margin:3pt 0 0}' +

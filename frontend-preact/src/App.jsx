@@ -1,11 +1,16 @@
+import * as stylex from '@stylexjs/stylex';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { flushRegisteredAutosaves } from './autosave.mjs';
 import { backend, backendError } from './backend.js';
+import { healthLabel, useBackendHealth } from './backend-health.js';
 import { BackendStatus } from './backend-status.jsx';
 import { CommandPalette } from './command-palette.jsx';
 import { frontendPlugins, getFrontendPlugin } from './plugins/index.js';
 import { INDONESIA_PROVINCES } from './plugins/indonesia-map-data.js';
+import { matchShortcut } from './shortcuts.js';
+import { ShortcutsHelp } from './shortcuts-help.jsx';
 import { styles, sx, toneStyle } from './stylex-styles.js';
+import { lightTheme } from './stylex-tokens.stylex.js';
 
 // Workbench shell: a persistent left sidebar owns navigation and the main
 // column gives each tool a predictable, spacious canvas.
@@ -16,16 +21,16 @@ const GLYPH = {
   tabs: '⊟',
   paper: '§',
   mir: '∿',
+  media: '◇',
   map: '◎',
   notes: '✎',
-  quiz: '◈',
   blender: '⬢',
   todo: '✓'
 };
 
 const GROUPS = [
-  { label: 'Workspace', ids: ['notes', 'todo', 'quiz'] },
-  { label: 'Library', ids: ['paper', 'tabs'] },
+  { label: 'Workspace', ids: ['notes', 'todo'] },
+  { label: 'Library', ids: ['paper', 'tabs', 'media'] },
   { label: 'Studio', ids: ['disk', 'equalizer', 'mir', 'blender'] },
   { label: 'Places', ids: ['map'] }
 ];
@@ -39,7 +44,7 @@ const PAPER_DESTINATIONS = [
     mode: 'read',
     glyph: '▶',
     title: 'Reader',
-    description: 'Two-column reading with section navigation.'
+    description: 'Academic reading with one- or two-column layout controls.'
   },
   {
     mode: 'references',
@@ -84,6 +89,8 @@ export function App() {
   const [windowMaximized, setWindowMaximized] = useState(false);
   const [isNative] = useState(() => backend.isNative());
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const health = useBackendHealth();
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -101,15 +108,51 @@ export function App() {
   }, [theme]);
 
   useEffect(() => {
+    // Tool jumps follow the sidebar order defined by GROUPS below.
+    const orderedToolIds = GROUPS.flatMap((group) => group.ids);
     function onGlobalKey(event) {
-      if (event.key === 'Escape') {
-        setSidebarOpen(false);
-        setPaletteOpen(false);
-        return;
-      }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setPaletteOpen((open) => !open);
+      const action = matchShortcut(event);
+      if (!action) return;
+      switch (action.type) {
+        case 'close-overlay':
+          setSidebarOpen(false);
+          setPaletteOpen(false);
+          setHelpOpen(false);
+          break;
+        case 'toggle-palette':
+          event.preventDefault();
+          setHelpOpen(false);
+          setPaletteOpen((open) => !open);
+          break;
+        case 'toggle-sidebar':
+          event.preventDefault();
+          setSidebarOpen((open) => !open);
+          break;
+        case 'toggle-theme':
+          event.preventDefault();
+          setTheme((current) => (current === 'dark' ? 'light' : 'dark'));
+          break;
+        case 'open-tool': {
+          const id = orderedToolIds[action.index];
+          if (!id) break;
+          event.preventDefault();
+          setHelpOpen(false);
+          setPaletteOpen(false);
+          selectApp(id);
+          break;
+        }
+        case 'go-home':
+          event.preventDefault();
+          setHelpOpen(false);
+          setPaletteOpen(false);
+          selectApp(null);
+          break;
+        case 'show-help':
+          setPaletteOpen(false);
+          setHelpOpen(true);
+          break;
+        default:
+          break;
       }
     }
     if (typeof window !== 'undefined')
@@ -124,7 +167,10 @@ export function App() {
       if (typeof window !== 'undefined')
         window.removeEventListener('keydown', onGlobalKey);
     };
-  }, [activeApp]);
+    // selectApp is re-created per render; re-subscribing keeps the guards
+    // (windowActionPending / navigationPending) fresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeApp, windowActionPending, navigationPending]);
 
   const pluginById = useMemo(() => {
     const map = new Map();
@@ -210,7 +256,16 @@ export function App() {
           <span className={sx('status-dot')} aria-hidden="true" />
           <span>{isNative ? 'Native' : 'Mock'}</span>
         </span>
+        <span
+          className={sx('topbar-status')}
+          role="status"
+          aria-label={`Backend ${healthLabel(health.state)}`}
+        >
+          <span>{healthLabel(health.state)}</span>
+        </span>
       </div>
+
+      <div className={sx('divider')} aria-hidden="true" />
 
       <button
         type="button"
@@ -223,8 +278,10 @@ export function App() {
         <kbd className={sx('sidebar-search-kbd')}>Ctrl K</kbd>
       </button>
 
+      <div className={sx('divider')} aria-hidden="true" />
+
       <nav className={sx('sidebar-nav')} aria-label="Tools">
-        <div>
+        <div className={sx('sidebar-group')}>
           <p className={sx('tools-group-label')}>Start</p>
           <button
             type="button"
@@ -243,7 +300,7 @@ export function App() {
           </button>
         </div>
         {GROUPS.map((group) => (
-          <div key={group.label}>
+          <div key={group.label} className={sx('sidebar-group')}>
             <p className={sx('tools-group-label')}>{group.label}</p>
             {group.ids.map((id) => {
               const app = pluginById.get(id);
@@ -393,7 +450,9 @@ export function App() {
   );
 
   return (
-    <div className={sx('workspace')}>
+    <div
+      className={`${sx('workspace')} ${theme === 'light' ? (stylex.props(lightTheme).className ?? '') : ''}`}
+    >
       {sidebar}
       {sidebarOpen && (
         <button
@@ -488,6 +547,19 @@ export function App() {
             {windowError}
           </p>
         )}
+        {(health.state === 'unavailable' || health.state === 'offline') && (
+          <p className={sx('error', 'workspace-error')} role="alert">
+            Backend {healthLabel(health.state).toLowerCase()}
+            {health.detail ? ` — ${health.detail}` : ''}{' '}
+            <button
+              type="button"
+              className={sx('text-button')}
+              onClick={health.refresh}
+            >
+              Retry
+            </button>
+          </p>
+        )}
 
         {paletteOpen && (
           <CommandPalette
@@ -500,6 +572,7 @@ export function App() {
             onClose={() => setPaletteOpen(false)}
           />
         )}
+        {helpOpen && <ShortcutsHelp onClose={() => setHelpOpen(false)} />}
 
         <main className={sx('content-body')}>
           {currentApp && ActivePlugin ? (
@@ -592,7 +665,7 @@ export function App() {
                   Everything stays on this device unless you export it.
                 </span>
                 <span className={sx('home-shortcut')}>
-                  Ctrl K <span>to jump anywhere</span>
+                  Ctrl K <span>to jump anywhere · ? for shortcuts</span>
                 </span>
               </div>
             </section>

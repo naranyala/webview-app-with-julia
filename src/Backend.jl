@@ -1,7 +1,7 @@
 """
     Backend
 
-Central request dispatcher for the webview application. All 36 frontend
+Central request dispatcher for the webview application. All 27 core frontend
 bindings are routed through `handle_request`, which looks up the handler in
 `HANDLERS`, parses the JSON payload, and calls the handler function.
 
@@ -30,45 +30,50 @@ using ..PDFGen
 using ..Persistence
 using ..StaticMediaAdapter
 
-export handle_request
+export handle_request, flush_pending!, register_handler!, unregister_handler!, handler_names
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
 # Keep application data outside the repository so a rebuild cannot overwrite
-# user content. Store limits are intentionally separate because quiz exports
-# can contain many nested questions.
+# user content.
 const CONFIG_DIR = joinpath(homedir(), ".config", "julia-starter")
 const NOTES_FILE = joinpath(CONFIG_DIR, "notes.json")
-const QUIZZES_FILE = joinpath(CONFIG_DIR, "quizzes.json")
 const SETTINGS_FILE = joinpath(CONFIG_DIR, "settings.json")
 const NOTES_STORE = Persistence.Store(NOTES_FILE; schema_version=1, max_bytes=4 * 1024 * 1024)
-const QUIZZES_STORE = Persistence.Store(QUIZZES_FILE; schema_version=1, max_bytes=8 * 1024 * 1024)
 
 # ── State ────────────────────────────────────────────────────────────────────
 
 mutable struct AppState
     counter::Int
     notes::Vector{Dict{String,Any}}
-    quizzes::Vector{Dict{String,Any}}
     scan_jobs::Dict{String,Dict{String,Any}}
     audio_jobs::Dict{String,String}
+    media_jobs::Dict{String,Dict{String,String}}
     jobs::Jobs.JobManager
     volumes::Vector{Dict{String,Any}}
     storage_errors::Dict{String,String}
+    pending_writes::Dict{String,Any}
+    persist_timers::Dict{String,Timer}
+    persist_lock::ReentrantLock
+    persist_io_lock::ReentrantLock
 end
 
 # Backend state is process-local and is the source of truth during a session.
-# Persistence is updated before mutations are committed, so a failed write
-# cannot leave the in-memory state ahead of the durable state.
+# Mutations update it immediately and schedule a coalesced durable write; the
+# launcher flushes pending writes before closing the native window.
 const STATE = AppState(
     0,
     Dict{String,Any}[],
-    Dict{String,Any}[],
     Dict{String,Dict{String,Any}}(),
     Dict{String,String}(),
+    Dict{String,Dict{String,String}}(),
     Jobs.JobManager(),
     Dict{String,Any}[],
     Dict{String,String}(),
+    Dict{String,Any}(),
+    Dict{String,Timer}(),
+    ReentrantLock(),
+    ReentrantLock(),
 )
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -126,9 +131,66 @@ function _save_notes(notes=STATE.notes)
     delete!(STATE.storage_errors, "notes")
 end
 
-function _save_quizzes(quizzes=STATE.quizzes)
-    Persistence.save!(QUIZZES_STORE, quizzes)
-    delete!(STATE.storage_errors, "quizzes")
+const PERSIST_DELAY_SECONDS = 0.5
+
+function _persist_candidate!(key::AbstractString, candidate)
+    key == "notes" || throw(ArgumentError("unknown persistence key: $key"))
+    _save_notes(candidate)
+end
+
+function _flush_key!(key::String)
+    lock(STATE.persist_io_lock) do
+        while true
+            candidate = lock(STATE.persist_lock) do
+                pop!(STATE.persist_timers, key, nothing)
+                pop!(STATE.pending_writes, key, nothing)
+            end
+            candidate === nothing && return true
+            try
+                _persist_candidate!(key, candidate)
+            catch error
+                lock(STATE.persist_lock) do
+                    haskey(STATE.pending_writes, key) ||
+                        (STATE.pending_writes[key] = candidate)
+                    STATE.storage_errors[key] = sprint(showerror, error)
+                end
+                return false
+            end
+        end
+    end
+end
+
+function _schedule_persist(key::AbstractString, data; delay::Real=PERSIST_DELAY_SECONDS)
+    key_string = String(key)
+    lock(STATE.persist_lock) do
+        STATE.pending_writes[key_string] = deepcopy(data)
+        existing = pop!(STATE.persist_timers, key_string, nothing)
+        existing === nothing || close(existing)
+        STATE.persist_timers[key_string] = Timer(delay) do _
+            _flush_key!(key_string)
+        end
+    end
+    nothing
+end
+
+function flush_pending!()
+    keys_to_flush = lock(STATE.persist_lock) do
+        pending_keys = collect(Base.keys(STATE.pending_writes))
+        for timer in values(STATE.persist_timers)
+            close(timer)
+        end
+        empty!(STATE.persist_timers)
+        pending_keys
+    end
+    results = map(_flush_key!, keys_to_flush)
+    lock(STATE.persist_io_lock) do
+        # Wait for a callback that already entered the writer.
+    end
+    remaining = lock(STATE.persist_lock) do
+        collect(keys(STATE.pending_writes))
+    end
+    append!(results, map(_flush_key!, remaining))
+    all(results)
 end
 
 # ── Security ─────────────────────────────────────────────────────────────────
@@ -273,20 +335,14 @@ end
 const MAX_TITLE = 200
 const MAX_TAG = 64
 const MAX_NOTE_BODY = 512 * 1024  # 512 KB
-const MAX_TEXT = 20000
 const MAX_ID = 200
-const MAX_TOPIC = 200
-const MAX_DIFFICULTY = 64
-const MAX_TAGS = 16
 const MAX_MIR_PAYLOAD_BYTES = 16 * 1024 * 1024
 const MAX_REQUEST_PAYLOAD_BYTES = 32 * 1024 * 1024
 const MAX_PDF_BYTES = 16 * 1024 * 1024
-const MAX_QUIZ_IMPORT_BYTES = 2 * 1024 * 1024
 
 
 include("backend/notes.jl")
 include("backend/pdf.jl")
-include("backend/quiz.jl")
 include("backend/analysis.jl")
 include("backend/media.jl")
 include("backend/router.jl")

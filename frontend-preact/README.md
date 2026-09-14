@@ -20,7 +20,9 @@ self-contained launcher document to `dist/index.html`.
 ## Frontend surface
 
 The active registry exposes Sample Library, Monitor EQ, Tab Vault, MIR Papers,
-MIR Lab, Indonesia Map, Chain Notes, Quiz, Blender Companion, and Todos.
+MIR Lab, Media Inspector, Indonesia Map, Chain Notes, Blender Companion, and
+Todos. MIR Papers supports academic single-/two-column layouts and extensible
+Mermaid/MathJax content blocks.
 
 The adapter in `src/backend.js` keeps browser development usable by providing
 mock responses when `window.*` bindings are absent. See

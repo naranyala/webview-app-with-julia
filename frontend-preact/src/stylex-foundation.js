@@ -22,7 +22,9 @@ export const foundationStyles = stylex.create({
     gap: '0.6rem',
     height: 52,
     padding: '0 0.9rem',
-    borderBottom: `1px solid ${c.border}`,
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: c.border,
     backgroundColor: c.overlay,
     backdropFilter: 'blur(16px) saturate(1.4)'
   },
@@ -124,7 +126,9 @@ export const foundationStyles = stylex.create({
       flexDirection: 'row',
       overflowX: 'auto',
       padding: '0.25rem 0.35rem',
-      borderTop: `1px solid ${c.border}`,
+      borderTopWidth: 1,
+      borderTopStyle: 'solid',
+      borderTopColor: c.border,
       borderRight: 0
     }
   },
@@ -191,8 +195,12 @@ export const foundationStyles = stylex.create({
     gap: 0,
     margin: '0 -0.75rem',
     padding: '0.35rem 0',
-    borderTop: `1px solid ${c.border}`,
-    borderBottom: `1px solid ${c.border}`
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: c.border,
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: c.border
   },
   sideItem: {
     position: 'relative',
@@ -245,7 +253,6 @@ export const foundationStyles = stylex.create({
     '@media (min-width: 720px)': { maxWidth: '42rem', paddingTop: '2rem' },
     '@media (min-width: 1024px)': { maxWidth: '62rem' }
   },
-  quizLayout: { width: '100%', maxWidth: '72rem', margin: '0 auto' },
   mapPage: { maxWidth: '80rem' },
   mapLayout: {
     display: 'grid',
@@ -258,7 +265,9 @@ export const foundationStyles = stylex.create({
   mapPanel: {
     minWidth: 0,
     padding: '1rem',
-    border: `1px solid ${c.border}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.border,
     borderRadius: 14,
     backgroundColor: c.surface,
     '@media (min-width: 720px)': { padding: '1.35rem' },
@@ -327,7 +336,9 @@ export const foundationStyles = stylex.create({
     width: '100%',
     minHeight: 40,
     padding: '0.55rem 0.65rem',
-    border: `1px solid ${c.borderStrong}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 8,
     outline: 0,
     backgroundColor: c.surfaceAlt,
@@ -339,7 +350,9 @@ export const foundationStyles = stylex.create({
     position: 'relative',
     minHeight: 280,
     overflow: 'hidden',
-    border: `1px solid ${c.borderStrong}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 11,
     backgroundColor: c.bg,
     backgroundImage: `linear-gradient(${c.gridLine} 1px, transparent 1px), linear-gradient(90deg, ${c.gridLine} 1px, transparent 1px)`,
@@ -373,7 +386,9 @@ export const foundationStyles = stylex.create({
     flexDirection: 'column',
     gap: 2,
     padding: '0.45rem 0.6rem',
-    border: `1px solid ${c.borderStrong}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 7,
     backgroundColor: c.overlay,
     color: c.textSecondary,
@@ -405,7 +420,9 @@ export const foundationStyles = stylex.create({
   mapBrowser: {
     minWidth: 0,
     padding: '1rem',
-    border: `1px solid ${c.border}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.border,
     borderRadius: 14,
     backgroundColor: c.surfaceAlt,
     '@media (min-width: 720px)': { padding: '1.15rem' },
@@ -423,7 +440,9 @@ export const foundationStyles = stylex.create({
     width: '100%',
     minHeight: 42,
     padding: '0.6rem 0.7rem',
-    border: `1px solid ${c.borderStrong}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 8,
     outline: 0,
     backgroundColor: c.bg,
@@ -477,7 +496,9 @@ export const foundationStyles = stylex.create({
     gap: '0.8rem',
     marginTop: '0.8rem',
     padding: '1rem',
-    border: `1px solid ${c.border}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.border,
     borderRadius: 14,
     backgroundColor: c.surface,
     '@media (max-width: 719px)': { padding: '0.75rem' }
@@ -490,7 +511,9 @@ export const foundationStyles = stylex.create({
   },
   mapTableScroll: {
     overflowX: 'auto',
-    border: `1px solid ${c.border}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.border,
     borderRadius: 9
   },
   mapTable: {
@@ -506,7 +529,9 @@ export const foundationStyles = stylex.create({
   },
   mapTableHead: {
     padding: '0.65rem 0.7rem',
-    borderBottom: `1px solid ${c.borderStrong}`,
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: c.borderStrong,
     color: c.textSecondary,
     fontSize: '0.6rem',
     fontWeight: 700,
@@ -517,7 +542,9 @@ export const foundationStyles = stylex.create({
   },
   mapTableCell: {
     padding: '0.65rem 0.7rem',
-    borderBottom: `1px solid ${c.border}`,
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: c.border,
     color: c.textSecondary,
     whiteSpace: 'nowrap',
     '@media (max-width: 719px)': {
@@ -557,7 +584,9 @@ export const foundationStyles = stylex.create({
     justifyContent: 'space-between',
     gap: '1rem',
     padding: '0.9rem 1rem',
-    border: `1px solid ${c.amberMuted}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.amberMuted,
     borderRadius: 11,
     backgroundColor: c.amberMuted,
     '@media (max-width: 719px)': {
@@ -607,7 +636,9 @@ export const foundationStyles = stylex.create({
     gap: '1.1rem',
     width: 'min(18rem, calc(100vw - 2.5rem))',
     padding: '1.25rem 1rem',
-    borderRight: `1px solid ${c.border}`,
+    borderRightWidth: 1,
+    borderRightStyle: 'solid',
+    borderRightColor: c.border,
     backgroundColor: c.sidebar,
     backgroundImage: c.sidebarBackground,
     overflowY: 'auto',
@@ -701,7 +732,9 @@ export const foundationStyles = stylex.create({
     flexDirection: 'column',
     gap: '0.35rem',
     padding: '0.8rem 0.6rem',
-    border: 0,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 14,
     backgroundColor: c.surface,
     boxShadow: c.shadowPanel
@@ -709,7 +742,9 @@ export const foundationStyles = stylex.create({
   sidebarFooter: {
     marginTop: 'auto',
     paddingTop: '0.8rem',
-    borderTop: `1px solid ${c.border}`
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: c.border
   },
   mainColumn: { display: 'flex', flexDirection: 'column', minWidth: 0 },
   contentTopbar: {
@@ -721,7 +756,9 @@ export const foundationStyles = stylex.create({
     gap: '0.6rem',
     minHeight: 64,
     padding: '0.5rem 1.25rem',
-    borderBottom: `1px solid ${c.border}`,
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: c.border,
     backgroundColor: c.overlay,
     backdropFilter: 'blur(16px) saturate(1.4)'
   },
@@ -784,5 +821,29 @@ export const foundationStyles = stylex.create({
     border: 0,
     backgroundColor: c.scrim,
     '@media (min-width: 900px)': { display: 'none' }
+  },
+  // Compact hairline between UI regions (sidebar blocks, list/editor panes).
+  // Zero margin: surrounding flex gaps own the rhythm so dividers stay tight.
+  // Strong border: region lines must read as lines in both themes.
+  divider: {
+    border: 0,
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: c.borderStrong,
+    margin: 0,
+    width: '100%'
+  },
+  // Bordered box around one sidebar nav group: the box edge is the boundary,
+  // so groups need no extra dividers between them.
+  sidebarGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.15rem',
+    padding: '0.55rem 0.5rem 0.65rem',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
+    borderRadius: 12,
+    backgroundColor: 'transparent'
   }
 });

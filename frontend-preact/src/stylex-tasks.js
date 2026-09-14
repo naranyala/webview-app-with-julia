@@ -19,7 +19,9 @@ export const taskStyles = stylex.create({
     height: 24,
     appearance: 'none',
     cursor: 'pointer',
-    border: `2px solid ${c.borderStrong}`,
+    borderWidth: 2,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: '50%',
     ':checked': { borderColor: c.emerald, backgroundColor: c.emerald }
   },
@@ -30,7 +32,9 @@ export const taskStyles = stylex.create({
     gap: '0.6rem',
     minHeight: 48,
     padding: '0.45rem 0.2rem',
-    borderBottom: `1px solid ${c.border}`
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: c.border
   },
   taskLabel: {
     minWidth: 0,
@@ -71,7 +75,9 @@ export const taskStyles = stylex.create({
     width: '8.2rem',
     minHeight: 44,
     padding: '0.5rem',
-    border: `1px solid ${c.borderStrong}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 8,
     outline: 0,
     backgroundColor: c.surfaceAlt,

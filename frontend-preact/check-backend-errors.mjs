@@ -45,7 +45,7 @@ await withWindow({}, async () => {
 });
 
 // Optional StaticMediaCompanion bindings use browser-safe mocks without
-// changing the 36-binding native capability check.
+// changing the core native capability check.
 await withWindow({}, async () => {
   check('mock media inspection parses', (await backend.inspectMedia('demo.md')).mime === 'text/markdown');
   check('mock markdown rendering returns text', (await backend.markdownToHtml('# Demo')).includes('<h1>'));
@@ -205,92 +205,21 @@ await withWindow({}, async () => {
       'Documents/demo.pdf'
   );
   try {
+    await backend.generatePdf('demo.pdf', 'Title', 'Body', 'triple');
+    check('PDF layout is validated client-side', false);
+  } catch (error) {
+    check(
+      'PDF layout is validated client-side',
+      errorDetails(error).code === 'InvalidArgument'
+    );
+  }
+  try {
     await backend.inspectBlend('/tmp/demo.blend');
     check('mock Blender inspection is unavailable', false);
   } catch (error) {
     check('mock Blender inspection is unavailable', errorDetails(error).code === 'Unavailable');
   }
 });
-
-// 10. quiz CRUD round-trips through the mock store.
-await withWindow({}, async () => {
-  check('mock quiz list starts empty', (await backend.quizList()).length === 0);
-  const collection = await backend.quizCreateCollection(
-    'Zig Basics',
-    'First deck',
-    'gold',
-    'Custom'
-  );
-  check('mock quiz collection has an id', collection.id.startsWith('quiz-mock-col-'));
-  check(
-    'mock quiz list returns created deck',
-    (await backend.quizList()).length === 1
-  );
-  const updated = await backend.quizUpdateCollection(
-    collection.id,
-    'Zig 101',
-    'Renamed deck'
-  );
-  check('mock quiz collection renames', updated.title === 'Zig 101');
-  const question = await backend.quizCreateQuestion(
-    collection.id,
-    'General',
-    'What is Zig?',
-    'A systems language.'
-  );
-  check('mock quiz question has an id', question.id.startsWith('quiz-mock-q-'));
-  const edited = await backend.quizUpdateQuestion(
-    collection.id,
-    question.id,
-    'General',
-    'What is Zig?',
-    'A systems programming language.',
-    '',
-    'Starter',
-    'systems, languages'
-  );
-  check(
-    'mock quiz question edits answer and tags',
-    edited.answer === 'A systems programming language.' &&
-      edited.tags.length === 2
-  );
-  const exported = await backend.quizExport(collection.id);
-  check('mock quiz export returns a path', exported.path.includes('quiz-'));
-  const imported = await backend.quizImport(
-    JSON.stringify({
-      id: 'old-id',
-      title: 'Imported deck',
-      description: 'Imported',
-      questions: [{ id: 'old-q', question: 'Prompt', answer: 'Answer' }]
-    })
-  );
-  check('mock quiz import assigns a fresh id', imported.id !== 'old-id');
-  await backend.quizDeleteQuestion(collection.id, question.id);
-  check(
-    'mock quiz question deletes',
-    (await backend.quizList())[0].questions.length === 0
-  );
-  await backend.quizDeleteCollection(collection.id);
-  await backend.quizDeleteCollection(imported.id);
-  check('mock quiz deck deletes', (await backend.quizList()).length === 0);
-  try {
-    await backend.quizUpdateCollection('missing', 'T', 'D');
-    check('missing quiz deck rejected', false);
-  } catch (error) {
-    check('missing quiz deck code is QuizNotFound', errorDetails(error).code === 'QuizNotFound');
-  }
-  try {
-    await backend.quizCreateCollection('', 'D', '', '');
-    check('empty quiz title rejected', false);
-  } catch (error) {
-    check('empty quiz title code is InvalidArgument', errorDetails(error).code === 'InvalidArgument');
-  }
-});
-check(
-  'quiz errors have friendly messages',
-  errorDetails(new Error('{"code":"QuizNotFound"}')).message ===
-    'The quiz item no longer exists.'
-);
 
 if (failures > 0) {
   console.error(`${failures} bridge error test(s) failed`);

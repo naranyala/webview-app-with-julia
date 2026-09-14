@@ -16,6 +16,15 @@ export MediaTooLargeError, inspect_media, markdown_to_html, read_text, write_tex
     error_code
 
 const MAX_TEXT_BYTES = 16 * 1024 * 1024
+const MEDIA_SCHEMA_VERSION = 1
+
+function _provenance(backend::AbstractString)
+    Dict{String,Any}(
+        "engine" => "StaticMediaCompanion",
+        "engineVersion" => string(Base.pkgversion(StaticMediaCompanion)),
+        "backend" => String(backend),
+    )
+end
 
 struct MediaTooLargeError <: Exception
     detail::String
@@ -49,6 +58,8 @@ end
 
 function _media_info_dict(info::StaticMediaCompanion.MediaInfo)
     Dict{String,Any}(
+        "schemaVersion" => MEDIA_SCHEMA_VERSION,
+        "provenance" => _provenance("media-info"),
         "path" => info.path,
         "kind" => _kind_name(info.kind),
         "mime" => info.mime,
@@ -91,6 +102,8 @@ end
 
 function _plan_dict(plan::StaticMediaCompanion.ConversionPlan)
     Dict{String,Any}(
+        "schemaVersion" => MEDIA_SCHEMA_VERSION,
+        "provenance" => _provenance(String(plan.backend)),
         "input" => plan.input,
         "output" => plan.output,
         "sourceKind" => _kind_name(plan.source_kind),
@@ -105,9 +118,17 @@ function plan_conversion(input::AbstractString, output::AbstractString)
     _plan_dict(StaticMediaCompanion.plan_conversion(input, output))
 end
 
-function convert_media(input::AbstractString, output::AbstractString)
-    result = StaticMediaCompanion.convert_media_result(input, output)
+function convert_media(input::AbstractString, output::AbstractString;
+                       timeout_seconds=nothing, cancel=nothing)
+    result = StaticMediaCompanion.convert_media_result(
+        input,
+        output;
+        timeout_seconds=timeout_seconds,
+        cancel=cancel,
+    )
     Dict{String,Any}(
+        "schemaVersion" => MEDIA_SCHEMA_VERSION,
+        "provenance" => _provenance(String(result.backend)),
         "output" => result.output,
         "backend" => String(result.backend),
         "sourceKind" => _kind_name(result.source_kind),
@@ -141,6 +162,8 @@ function get_media_capabilities()
         for (name, path) in pairs(raw_tools)
     )
     Dict{String,Any}(
+        "schemaVersion" => MEDIA_SCHEMA_VERSION,
+        "provenance" => _provenance("capability-report"),
         "backend" => _capability_value(StaticMediaCompanion.backend_capabilities()),
         "tools" => tools,
     )

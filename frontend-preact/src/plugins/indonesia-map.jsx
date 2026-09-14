@@ -259,9 +259,9 @@ export function IndonesiaMap({
         </span>
       </div>
 
-      <div className={sx('map-layout')}>
+      <div className={sx('map-frame')}>
         <section
-          className={sx('map-panel')}
+          className={sx('frame-pane')}
           aria-label="Indonesia boundary map"
         >
           <div className={sx('map-panel-heading')}>
@@ -366,7 +366,9 @@ export function IndonesiaMap({
           </div>
         </section>
 
-        <aside className={sx('map-browser')} aria-label="Map region browser">
+        <div className={sx('frame-divider')} aria-hidden="true" />
+
+        <aside className={sx('frame-pane')} aria-label="Map region browser">
           <div className={sx('map-browser-heading')}>
             <div>
               <p className={sx('panel-label')}>Browse</p>

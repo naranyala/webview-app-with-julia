@@ -32,7 +32,7 @@ ID.
 | Layer | Location | Responsibility |
 | --- | --- | --- |
 | Julia package | `src/WebViewApp.jl` | Package exports, frontend loading, and CLI greeting. |
-| Julia backend | `src/Backend.jl` + `src/backend/` | Facade for JSON RPC routing; handler groups cover notes, quizzes, PDF, analysis, media, and routing separately. |
+| Julia backend | `src/Backend.jl` + `src/backend/` | Facade for JSON RPC routing; handler groups cover notes, PDF, analysis, media, and routing separately, with startup plugin handler registration. |
 | Audio adapter | `src/AudioAnalysisAdapter.jl` | Validates bridge input and translates bounded audio work through Aural.jl. |
 | Julia WebView wrapper | `src/ManualWebview.jl` | Direct `ccall` declarations for window, HTML, event loop, binding, and return APIs. |
 | Desktop entry point | `bin/webview_app.jl` | Creates the window, registers native bindings, services the request queue, and shuts down cleanly. |
@@ -40,8 +40,9 @@ ID.
 | Native build | `native/build_webview.sh` | Fetches pinned WebView v0.12.0 and compiles the two shared libraries. |
 | Frontend shell | `frontend-preact/src/App.jsx` | Home launcher, navigation rail, tool panels, command palette, autosave flush, and window controls. |
 | Plugin registry | `frontend-preact/src/plugins/index.js` | Declares the tools reachable from the shell. |
+| Paper extension registry | `frontend-preact/src/plugins/paper-extensions.js` | Extensible academic blocks with Mermaid/MathJax-safe fallbacks and optional host enhancement. |
 | Frontend adapter | `frontend-preact/src/backend.js` + `backend-mock.js` | Validates arguments, calls `window.*`, normalizes errors, adds timeouts, and keeps browser mocks separate. |
-| StyleX catalog | `frontend-preact/src/stylex-*.js` | Groups shared tokens and styles by foundation, content, media, quiz, and tasks behind the `stylex-styles.js` facade. |
+| StyleX catalog | `frontend-preact/src/stylex-*.js` | Groups shared tokens and styles by foundation, content, media, and tasks behind the `stylex-styles.js` facade. |
 | Note PDF export | `frontend-preact/src/plugins/note-pdf.js` + `note-pdf-jspdf.js` | Builds shared note blocks and delegates jsPDF rendering to its own renderer. |
 | Frontend build | `frontend-preact/build.cjs` | Bundles Preact, extracts StyleX, emits assets, and creates the single-file HTML. |
 

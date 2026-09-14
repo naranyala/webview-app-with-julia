@@ -12,6 +12,22 @@ using WebViewApp.ManualWebview
         @test features["rms"] ≈ 0.7071067812
         @test features["analysisSchema"] == 1
         @test features["engine"] == "Aural"
+        spectral_samples = [sin(2pi * 440 * index / 8_000) for index in 0:7_999]
+        spectral = AudioAnalysisAdapter.analyze_samples(spectral_samples, 8_000; profile="spectral")
+        @test spectral["analysisSchema"] == 2
+        @test spectral["analysisProfile"] == "spectral"
+        @test spectral["spectralCentroidHz"] ≈ 440 atol=15
+        @test 0 <= spectral["spectralFlatness"] <= 1
+        @test haskey(spectral, "spectralRolloffHz")
+        state = UInt32(0x12345678)
+        noise = map(1:8_000) do _
+            state = UInt32(1_664_525) * state + UInt32(1_013_904_223)
+            2 * Float64(state) / Float64(typemax(UInt32)) - 1
+        end
+        noise_features = AudioAnalysisAdapter.analyze_samples(noise, 8_000; profile="spectral")
+        # For an unaveraged power spectrum, ideal white-noise flatness tends
+        # to exp(-gamma) ~= 0.561 rather than 1.
+        @test 0.4 <= noise_features["spectralFlatness"] <= 0.75
         @test_throws ArgumentError AudioAnalysisAdapter.analyze_samples(Float64[], 8000)
         @test_throws AudioAnalysisAdapter.AudioTooLargeError AudioAnalysisAdapter.analyze_samples(zeros(262145), 8000)
 
@@ -91,10 +107,21 @@ using WebViewApp.ManualWebview
         long_body = join(fill("line", 60), "\n")
         @test count(" /Type /Page /Parent ", String(PDFGen.pdf_bytes("Title", long_body))) == 2
 
+        two_body = join(fill("line one two", 120), "\n")
+        single_pages = count(" /Type /Page /Parent ", String(PDFGen.pdf_bytes("Title", two_body)))
+        double_pages = count(" /Type /Page /Parent ", String(PDFGen.pdf_bytes("Title", two_body; columns=2)))
+        @test double_pages <= single_pages
+        @test occursin("/F2 12 Tf", String(PDFGen.pdf_bytes("Title", "# Heading\nBody")))
+        @test occursin("/F2 12 Tf", String(PDFGen.pdf_bytes("Title", "# Heading\nBody"; columns=2)))
+        @test_throws ArgumentError PDFGen.pdf_bytes("Title", "Body"; columns=3)
+
         mktempdir() do directory
             path = joinpath(directory, "generated.pdf")
             @test PDFGen.write_pdf(path, "Title", "Body") == path
             @test startswith(read(path, String), "%PDF-1.4")
+            two_path = joinpath(directory, "two-column.pdf")
+            @test PDFGen.write_pdf(two_path, "Title", "Body"; columns=2) == two_path
+            @test startswith(read(two_path, String), "%PDF-1.4")
         end
     end
 

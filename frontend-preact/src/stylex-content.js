@@ -206,7 +206,9 @@ export const contentStyles = stylex.create({
   palette: {
     width: 'min(40rem, 100%)',
     overflow: 'hidden',
-    border: `1px solid ${c.borderStrong}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 18,
     backgroundColor: c.surface,
     boxShadow: c.shadowModal
@@ -292,7 +294,9 @@ export const contentStyles = stylex.create({
     display: 'flex',
     gap: '1rem',
     padding: '0.75rem 1rem',
-    borderTop: `1px solid ${c.border}`,
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: c.border,
     color: c.muted,
     fontFamily: c.fontMono,
     fontSize: '0.62rem'
@@ -361,7 +365,9 @@ export const contentStyles = stylex.create({
   },
   badge: {
     alignSelf: 'flex-start',
-    border: `1px solid ${c.cyanMuted}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.cyanMuted,
     borderRadius: 100,
     color: c.cyan,
     fontFamily: 'monospace',
@@ -373,7 +379,9 @@ export const contentStyles = stylex.create({
   },
   panel: {
     padding: '1.1rem',
-    border: `1px solid ${c.border}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.border,
     borderRadius: 16,
     backgroundColor: c.surface,
     boxShadow: c.shadowPanel,
@@ -405,7 +413,9 @@ export const contentStyles = stylex.create({
     width: '100%',
     minHeight: 44,
     padding: '0.65rem',
-    border: `1px solid ${c.borderStrong}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 10,
     outline: 0,
     backgroundColor: c.surfaceAlt,
@@ -482,7 +492,9 @@ export const contentStyles = stylex.create({
     gap: '0.75rem',
     marginTop: '1.25rem',
     paddingTop: '0.8rem',
-    borderTop: `1px solid ${c.border}`,
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: c.border,
     color: c.textSecondary,
     fontSize: '0.8rem'
   },
@@ -501,7 +513,6 @@ export const contentStyles = stylex.create({
     flexDirection: 'column',
     gap: '0.2rem'
   },
-  quizEditorSearch: { flex: 1, margin: 0, minWidth: 0 },
   notesPanel: { order: 1 },
   editor: {
     order: 2,
@@ -530,7 +541,9 @@ export const contentStyles = stylex.create({
     width: '100%',
     minHeight: 44,
     padding: '0.65rem 0.75rem',
-    border: `1px solid ${c.borderStrong}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 8,
     outline: 0,
     backgroundColor: c.surfaceAlt,
@@ -616,7 +629,9 @@ export const contentStyles = stylex.create({
     marginTop: '1.25rem',
     padding: '0 0 0.6rem',
     border: 0,
-    borderBottom: `1px solid ${c.borderStrong}`,
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: c.borderStrong,
     outline: 0,
     backgroundColor: 'transparent',
     color: c.text,
@@ -667,7 +682,9 @@ export const contentStyles = stylex.create({
     width: '100%',
     minHeight: 88,
     padding: '0.75rem',
-    border: `1px solid ${c.borderStrong}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 8,
     outline: 0,
     resize: 'vertical',
@@ -683,14 +700,18 @@ export const contentStyles = stylex.create({
   qnaImport: {
     marginTop: '1rem',
     paddingTop: '0.8rem',
-    borderTop: `1px solid ${c.border}`
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: c.border
   },
   qnaHelp: { margin: '0.5rem 0', color: c.textSecondary, fontSize: '0.72rem' },
   qnaImportInput: {
     width: '100%',
     minHeight: 120,
     padding: '0.75rem',
-    border: `1px solid ${c.borderStrong}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
     borderRadius: 8,
     outline: 0,
     resize: 'vertical',
@@ -708,7 +729,9 @@ export const contentStyles = stylex.create({
     gap: '0.5rem',
     marginTop: '1rem',
     paddingTop: '0.8rem',
-    borderTop: `1px solid ${c.border}`,
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: c.border,
     color: c.textSecondary,
     fontSize: '0.72rem'
   },
@@ -726,6 +749,50 @@ export const contentStyles = stylex.create({
     width: '100%',
     maxWidth: '76rem',
     margin: '0 auto'
+  },
+  // Framed region: one strong outer border, panes divided by hairlines
+  // instead of card gaps. The border — not spacing — is the separation.
+  essayFrame: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    alignItems: 'start',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
+    borderRadius: 16,
+    backgroundColor: c.surface,
+    '@media (min-width: 1024px)': {
+      gridTemplateColumns: '300px 1px minmax(0, 1fr)'
+    }
+  },
+  mapFrame: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.borderStrong,
+    borderRadius: 16,
+    backgroundColor: c.surface,
+    '@media (min-width: 720px)': {
+      gridTemplateColumns: 'minmax(0, 1.35fr) 1px minmax(15rem, 0.65fr)'
+    }
+  },
+  framePane: {
+    minWidth: 0,
+    padding: '1.1rem',
+    '@media (min-width: 720px)': { padding: '1.4rem' }
+  },
+  frameDivider: {
+    backgroundColor: c.borderStrong,
+    height: '1px',
+    width: '100%',
+    '@media (min-width: 720px)': { width: '1px', height: 'auto' }
+  },
+  frameDividerWide: {
+    backgroundColor: c.borderStrong,
+    height: '1px',
+    width: '100%',
+    '@media (min-width: 1024px)': { width: '1px', height: 'auto' }
   },
   essayLayout: {
     display: 'grid',
@@ -815,11 +882,18 @@ export const contentStyles = stylex.create({
   },
   segButtonActive: { backgroundColor: c.surfaceHover, color: c.text },
   essayInput: { minHeight: 340, lineHeight: 1.75 },
-  ideaInput: { minHeight: 110, borderLeft: `3px solid ${c.accent}` },
+  ideaInput: {
+    minHeight: 110,
+    borderLeftWidth: 3,
+    borderLeftStyle: 'solid',
+    borderLeftColor: c.accent
+  },
   previewArticle: {
     marginTop: '1rem',
     padding: '1.25rem 1.35rem',
-    border: `1px solid ${c.border}`,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: c.border,
     borderRadius: 10,
     backgroundColor: c.surfaceAlt,
     fontSize: '0.92rem',

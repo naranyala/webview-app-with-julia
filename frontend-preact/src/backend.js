@@ -28,10 +28,9 @@ import {
   parseConversionPlan,
   parseConversionResult,
   parseMediaCapabilities,
+  parseMediaConversionJob,
   parseMediaInfo,
   parseMediaWriteResult,
-  parseQuizCollection,
-  parseQuizCollectionList,
   parseStudioVolumeList,
   parseTextPayload
 } from './schemas.js';
@@ -93,6 +92,8 @@ function friendlyMessage(code, fallback) {
       return 'The media operation failed.';
     case 'ConversionFailed':
       return 'The media conversion failed.';
+    case 'ConversionRequiresJob':
+      return 'This conversion must run as a background job.';
     case 'BackendUnavailable':
       return 'The requested media backend is unavailable.';
     case 'JobLimitReached':
@@ -109,34 +110,6 @@ function friendlyMessage(code, fallback) {
       return 'Persistent note data is too large.';
     case 'NoteNotFound':
       return 'The note no longer exists.';
-    case 'QuizUnavailable':
-      return 'Quiz storage is unavailable.';
-    case 'QuizCorrupt':
-      return 'Quiz data is corrupt.';
-    case 'QuizWriteFailed':
-      return 'Quiz data could not be saved.';
-    case 'QuizTooLarge':
-      return 'Quiz data is too large.';
-    case 'QuizNotFound':
-      return 'The quiz item no longer exists.';
-    case 'QuizLimitReached':
-      return 'The quiz storage limit was reached.';
-    case 'QuizTitleEmpty':
-      return 'Collection title is required.';
-    case 'QuizTitleTooLong':
-      return 'Collection title is too long.';
-    case 'QuizIdEmpty':
-      return 'Quiz id is required.';
-    case 'QuizIdTooLong':
-      return 'Quiz id is too long.';
-    case 'QuizTextEmpty':
-      return 'Question and answer are required.';
-    case 'QuizTextTooLong':
-      return 'Quiz text is too long.';
-    case 'QuizTagTooLong':
-      return 'A quiz tag is too long.';
-    case 'QuizTooManyTags':
-      return 'Too many quiz tags were provided.';
     case 'InvalidPdfName':
       return 'The PDF filename is invalid.';
     case 'PdfTooLarge':
@@ -173,6 +146,8 @@ function friendlyMessage(code, fallback) {
       return 'The audio file is too large.';
     case 'AudioJobNotFound':
       return 'The audio analysis job was not found.';
+    case 'MediaJobNotFound':
+      return 'The media conversion job was not found.';
     case 'InvalidWav':
       return 'The WAV data is invalid.';
     case 'UnsupportedWav':
@@ -290,84 +265,6 @@ function validateNoteFields(id, title, tag, body) {
   return null;
 }
 
-function validateQuizId(id) {
-  if (typeof id !== 'string' || id.length === 0) {
-    return 'quiz id is required';
-  }
-  if (id.length > 200) return 'quiz id is too long';
-  return null;
-}
-
-function validateCollectionFields(title, description, tone, level) {
-  if (typeof title !== 'string' || title.trim().length === 0) {
-    return 'collection title is required';
-  }
-  if (title.length > 200) return 'collection title is too long';
-  if (typeof description !== 'string' || description.length > 20000) {
-    return 'collection description is too long';
-  }
-  if (typeof tone !== 'string' || tone.length > 200) {
-    return 'collection tone is too long';
-  }
-  if (typeof level !== 'string' || level.length > 200) {
-    return 'collection level is too long';
-  }
-  return null;
-}
-
-function validateQuestionFields(collectionId, topic, question, answer) {
-  const idError = validateQuizId(collectionId);
-  if (idError) return idError;
-  if (typeof topic !== 'string' || topic.length > 200) {
-    return 'question topic is too long';
-  }
-  if (typeof question !== 'string' || question.trim().length === 0) {
-    return 'question text is required';
-  }
-  if (typeof answer !== 'string' || answer.trim().length === 0) {
-    return 'answer text is required';
-  }
-  if (question.length > 20000 || answer.length > 20000) {
-    return 'question text is too long';
-  }
-  return null;
-}
-
-function validateFullQuestionFields(
-  id,
-  collectionId,
-  topic,
-  question,
-  answer,
-  explanation,
-  difficulty,
-  tagsCsv
-) {
-  const idError = validateQuizId(id);
-  if (idError) return idError;
-  const baseError = validateQuestionFields(
-    collectionId,
-    topic,
-    question,
-    answer
-  );
-  if (baseError) return baseError;
-  if (typeof explanation !== 'string' || explanation.length > 20000) {
-    return 'question explanation is too long';
-  }
-  if (typeof difficulty !== 'string' || difficulty.length > 64) {
-    return 'question difficulty is too long';
-  }
-  if (typeof tagsCsv !== 'string') return 'question tags are invalid';
-  const tags = tagsCsv
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-  if (tags.length > 16) return 'too many question tags';
-  if (tags.some((tag) => tag.length > 64)) return 'question tag is too long';
-  return null;
-}
-
 function callBinding(name, ...args) {
   // Keep all bridge selection in one place:
   // 1. use the native window binding when hosted;
@@ -402,15 +299,6 @@ const CORE_BINDINGS = [
   'updateNote',
   'deleteNote',
   'savePdf',
-  'quizList',
-  'quizCreateCollection',
-  'quizUpdateCollection',
-  'quizDeleteCollection',
-  'quizCreateQuestion',
-  'quizUpdateQuestion',
-  'quizDeleteQuestion',
-  'quizExport',
-  'quizImport',
   'mirAnalyze',
   'listVolumes',
   'startAssetScan',
@@ -480,121 +368,15 @@ export const backend = {
     }
     return callBinding('savePdf', filename, dataBase64);
   },
-  quizList: () =>
-    parsedBinding('quizList', callBinding('quizList'), parseQuizCollectionList),
-  quizCreateCollection: (title, description, tone, level) => {
-    const validationError = validateCollectionFields(
-      title,
-      description,
-      tone,
-      level
-    );
-    return validationError
-      ? invalidArgument(validationError)
-      : callBinding('quizCreateCollection', title, description, tone, level);
-  },
-  quizUpdateCollection: (id, title, description) => {
-    const idError = validateQuizId(id);
-    if (idError) return invalidArgument(idError);
-    const validationError = validateCollectionFields(
-      title,
-      description,
-      '',
-      ''
-    );
-    if (validationError) return invalidArgument(validationError);
-    return callBinding('quizUpdateCollection', id, title, description);
-  },
-  quizDeleteCollection: (id) => {
-    const idError = validateQuizId(id);
-    return idError
-      ? invalidArgument(idError)
-      : callBinding('quizDeleteCollection', id);
-  },
-  quizCreateQuestion: (collectionId, topic, question, answer) => {
-    const validationError = validateQuestionFields(
-      collectionId,
-      topic,
-      question,
-      answer
-    );
-    return validationError
-      ? invalidArgument(validationError)
-      : callBinding(
-          'quizCreateQuestion',
-          collectionId,
-          topic,
-          question,
-          answer
-        );
-  },
-  quizUpdateQuestion: (
-    collectionId,
-    id,
-    topic,
-    question,
-    answer,
-    explanation,
-    difficulty,
-    tagsCsv
-  ) => {
-    const validationError = validateFullQuestionFields(
-      id,
-      collectionId,
-      topic,
-      question,
-      answer,
-      explanation,
-      difficulty,
-      tagsCsv
-    );
-    return validationError
-      ? invalidArgument(validationError)
-      : callBinding(
-          'quizUpdateQuestion',
-          collectionId,
-          id,
-          topic,
-          question,
-          answer,
-          explanation,
-          difficulty,
-          tagsCsv
-        );
-  },
-  quizDeleteQuestion: (collectionId, id) => {
-    const collectionError = validateQuizId(collectionId);
-    if (collectionError) return invalidArgument(collectionError);
-    const idError = validateQuizId(id);
-    if (idError) return invalidArgument(idError);
-    return callBinding('quizDeleteQuestion', collectionId, id);
-  },
-  quizExport: (collectionId) => {
-    const idError = validateQuizId(collectionId);
-    return idError
-      ? invalidArgument(idError)
-      : callBinding('quizExport', collectionId);
-  },
-  quizImport: (source) => {
-    if (typeof source !== 'string' || source.length === 0) {
-      return invalidArgument('quiz JSON is required');
-    }
-    if (source.length > 2 * 1024 * 1024) {
-      return invalidArgument('quiz JSON is too large');
-    }
-    return parsedBinding(
-      'quizImport',
-      callBinding('quizImport', source),
-      parseQuizCollection
-    );
-  },
-  mirAnalyze: (samples, sampleRate) => {
+  mirAnalyze: (samples, sampleRate, profile = 'quick') => {
     const invalid =
       validateMirInput(samples, sampleRate) ||
       (samples.length > 262144 ? 'too many audio samples' : null);
     return invalid
       ? invalidArgument(invalid)
-      : callBinding('mirAnalyze', [...samples], sampleRate);
+      : !['quick', 'spectral'].includes(profile)
+        ? invalidArgument('analysis profile is invalid')
+        : callBinding('mirAnalyze', [...samples], sampleRate, profile);
   },
   listVolumes: () =>
     parsedBinding(
@@ -634,22 +416,26 @@ export const backend = {
           callBinding('getAudioMetadata', path),
           parseAudioMetadata
         ),
-  analyzeAudio: (path) =>
+  analyzeAudio: (path, profile = 'quick') =>
     typeof path !== 'string' || !path.trim()
       ? invalidArgument('audio path is required')
-      : parsedBinding(
-          'analyzeAudio',
-          callBinding('analyzeAudio', path),
-          parseAudioAnalysis
-        ),
-  startAudioAnalysis: (path) =>
+      : !['quick', 'spectral'].includes(profile)
+        ? invalidArgument('analysis profile is invalid')
+        : parsedBinding(
+            'analyzeAudio',
+            callBinding('analyzeAudio', path, profile),
+            parseAudioAnalysis
+          ),
+  startAudioAnalysis: (path, profile = 'quick') =>
     typeof path !== 'string' || !path.trim()
       ? invalidArgument('audio path is required')
-      : parsedBinding(
-          'startAudioAnalysis',
-          callBinding('startAudioAnalysis', path),
-          parseAudioAnalysisJob
-        ),
+      : !['quick', 'spectral'].includes(profile)
+        ? invalidArgument('analysis profile is invalid')
+        : parsedBinding(
+            'startAudioAnalysis',
+            callBinding('startAudioAnalysis', path, profile),
+            parseAudioAnalysisJob
+          ),
   getAudioAnalysisStatus: (jobId) =>
     typeof jobId !== 'string' || !jobId
       ? invalidArgument('audio job id is required')
@@ -722,6 +508,33 @@ export const backend = {
           callBinding('convertMedia', input, output),
           parseConversionResult
         ),
+  startMediaConversion: (input, output) =>
+    typeof input !== 'string' ||
+    !input.trim() ||
+    typeof output !== 'string' ||
+    !output.trim()
+      ? invalidArgument('conversion input or output is invalid')
+      : parsedBinding(
+          'startMediaConversion',
+          callBinding('startMediaConversion', input, output),
+          parseMediaConversionJob
+        ),
+  getMediaConversionStatus: (jobId) =>
+    typeof jobId !== 'string' || !jobId
+      ? invalidArgument('media job id is required')
+      : parsedBinding(
+          'getMediaConversionStatus',
+          callBinding('getMediaConversionStatus', jobId),
+          parseMediaConversionJob
+        ),
+  cancelMediaConversion: (jobId) =>
+    typeof jobId !== 'string' || !jobId
+      ? invalidArgument('media job id is required')
+      : parsedBinding(
+          'cancelMediaConversion',
+          callBinding('cancelMediaConversion', jobId),
+          parseMediaConversionJob
+        ),
   getMediaCapabilities: () =>
     parsedBinding(
       'getMediaCapabilities',
@@ -744,13 +557,14 @@ export const backend = {
     typeof path !== 'string' || !path.trim()
       ? invalidArgument('blend path is required')
       : callBinding('inspectBlend', path),
-  generatePdf: (filename, title, body) =>
+  generatePdf: (filename, title, body, layout = 'single') =>
     typeof filename !== 'string' ||
     !/^[A-Za-z0-9][A-Za-z0-9._-]{0,95}\.pdf$/.test(filename) ||
     typeof title !== 'string' ||
-    typeof body !== 'string'
-      ? invalidArgument('PDF filename, title, or body is invalid')
-      : callBinding('generatePdf', filename, title, body),
+    typeof body !== 'string' ||
+    (layout !== 'single' && layout !== 'two-column' && layout !== 'double')
+      ? invalidArgument('PDF filename, title, body, or layout is invalid')
+      : callBinding('generatePdf', filename, title, body, layout),
   minimizeWindow: () => callBinding('minimizeWindow'),
   maximizeWindow: () => callBinding('maximizeWindow'),
   restoreWindow: () => callBinding('restoreWindow'),

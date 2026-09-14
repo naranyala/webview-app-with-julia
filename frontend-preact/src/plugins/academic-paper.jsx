@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { backend, backendError } from '../backend.js';
 import { styles, sx } from '../stylex-styles.js';
 import { ImageAssets } from './image-assets.jsx';
@@ -15,9 +15,11 @@ import {
   resolveCitations
 } from './paper.js';
 import { bundledPapers, getPaper } from './paper-data.js';
+import { enhancePaperExtensions } from './paper-extensions.js';
 import {
   downloadPaperAsPdf,
   generatePaperPdfBytes,
+  PAPER_PDF_LAYOUTS,
   paperPdfFileName
 } from './paper-pdf.js';
 import { ReferenceManager } from './reference-manager.jsx';
@@ -25,10 +27,11 @@ import { ReferenceManager } from './reference-manager.jsx';
 export function AcademicPaper({ mode = 'read' }) {
   const [papers, setPapers] = useState(bundledPapers);
   const [paperId, setPaperId] = useState(bundledPapers[0]?.id || '');
-  const [status, setStatus] = useState('final');
+  const [layout, setLayout] = useState('double');
   const [exporter, setExporter] = useState(DEFAULT_NOTE_PDF_EXPORTER);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const paperRoot = useRef(null);
 
   const paper =
     papers.find((entry) => entry.id === paperId) ||
@@ -42,10 +45,14 @@ export function AcademicPaper({ mode = 'read' }) {
       paperContentHtml(
         paper,
         resolved,
-        status === 'final' ? 'paper-columns' : 'paper-single'
+        layout === 'double' ? 'paper-columns' : 'paper-single'
       ),
-    [paper, resolved, status]
+    [paper, resolved, layout]
   );
+
+  useEffect(() => {
+    void enhancePaperExtensions(paperRoot.current);
+  }, [html]);
 
   function updatePaper(next) {
     setPapers((current) =>
@@ -74,11 +81,11 @@ export function AcademicPaper({ mode = 'read' }) {
       setError('');
       setMessage('Exporting...');
       if (backend.isNative()) {
-        const bytes = await generatePaperPdfBytes(exporter, paper);
+        const bytes = await generatePaperPdfBytes(exporter, paper, layout);
         const saved = await backend.savePdf(filename, pdfBytesToBase64(bytes));
         setMessage(`Saved to ${saved.path}`);
       } else {
-        await downloadPaperAsPdf(exporter, paper);
+        await downloadPaperAsPdf(exporter, paper, layout);
         setMessage('Downloaded');
       }
     } catch (failure) {
@@ -87,14 +94,18 @@ export function AcademicPaper({ mode = 'read' }) {
     }
   }
 
-  function printPaper() {
+  async function printPaper() {
     if (typeof document === 'undefined' || typeof window === 'undefined')
       return;
     const style = document.createElement('style');
     style.textContent = PAPER_PRINT_CSS;
     const root = document.createElement('div');
     root.id = 'paper-print-root';
-    root.innerHTML = paperContentHtml(paper, resolved, 'paper-columns');
+    root.innerHTML = paperContentHtml(
+      paper,
+      resolved,
+      layout === 'double' ? 'paper-columns' : 'paper-single'
+    );
     const cleanup = () => {
       style.remove();
       root.remove();
@@ -102,6 +113,7 @@ export function AcademicPaper({ mode = 'read' }) {
     };
     window.addEventListener('afterprint', cleanup);
     document.body.append(style, root);
+    await enhancePaperExtensions(root);
     window.print();
     setTimeout(cleanup, 2000);
   }
@@ -120,7 +132,9 @@ export function AcademicPaper({ mode = 'read' }) {
           </p>
         </div>
         <span className={sx('mock-badge')}>
-          {status === 'final' ? 'Final · two columns' : 'Draft · one column'}
+          {layout === 'double'
+            ? 'Academic · two columns'
+            : 'Preprint · one column'}
         </span>
       </div>
 
@@ -142,26 +156,19 @@ export function AcademicPaper({ mode = 'read' }) {
             ))}
           </div>
           <div>
-            <button
-              type="button"
-              className={sx(
-                'chip',
-                status === 'draft' && styles.sideItemActive
-              )}
-              onClick={() => setStatus('draft')}
-            >
-              Draft
-            </button>{' '}
-            <button
-              type="button"
-              className={sx(
-                'chip',
-                status === 'final' && styles.sideItemActive
-              )}
-              onClick={() => setStatus('final')}
-            >
-              Final
-            </button>
+            {PAPER_PDF_LAYOUTS.map((option) => (
+              <button
+                type="button"
+                key={option.id}
+                className={sx(
+                  'chip',
+                  layout === option.id && styles.sideItemActive
+                )}
+                onClick={() => setLayout(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
         <nav
@@ -185,6 +192,7 @@ export function AcademicPaper({ mode = 'read' }) {
       <article className={sx('tool-panel')}>
         <div
           className="paper-reading"
+          ref={paperRoot}
           dangerouslySetInnerHTML={{ __html: html }}
         />
         {resolved.missing.length > 0 && (
@@ -208,6 +216,7 @@ export function AcademicPaper({ mode = 'read' }) {
               className={sx('select')}
               aria-label="PDF exporter"
               value={exporter}
+              disabled={layout === 'double'}
               onChange={(event) => setExporter(event.currentTarget.value)}
             >
               {NOTE_PDF_EXPORTERS.map((option) => (
@@ -217,12 +226,13 @@ export function AcademicPaper({ mode = 'read' }) {
               ))}
             </select>
           </label>
+          {layout === 'double' && <span>Two-column export uses jsPDF.</span>}
           <button
             type="button"
             className={sx('text-button')}
             onClick={runExport}
           >
-            Paper -&gt;
+            Export PDF
           </button>
           <button
             type="button"

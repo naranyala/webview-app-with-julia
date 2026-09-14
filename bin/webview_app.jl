@@ -15,27 +15,29 @@ function main()
     ManualWebview.set_title!(webview, "WebView App")
     ManualWebview.set_size!(webview, 960, 640)
 
-    # All bindings the frontend expects are registered on the queue.
+    # Register the stable frontend contract plus any plugin handlers that were
+    # added during Julia startup. Window actions stay shell-owned below.
     # Window management bindings (minimize/maximize/restore/close) are handled
     # inline here because they need the webview handle, which Backend.jl
     # does not have access to.
     bindings = [
         "increment", "reset", "getSystemInfo", "getTimestamp", "getStatus",
         "getNotes", "createNote", "updateNote", "deleteNote", "savePdf",
-        "quizList", "quizCreateCollection", "quizUpdateCollection",
-        "quizDeleteCollection", "quizCreateQuestion", "quizUpdateQuestion",
-        "quizDeleteQuestion", "quizExport", "quizImport", "mirAnalyze",
+        "mirAnalyze",
         "listVolumes", "startAssetScan", "getAssetScanStatus", "cancelAssetScan",
         "getAudioMetadata", "analyzeAudio", "startAudioAnalysis",
         "getAudioAnalysisStatus", "cancelAudioAnalysis",
         "parseBibTeX", "inspectBlend", "generatePdf",
         # Optional StaticMediaCompanion capabilities. These are registered
-        # independently from the 36 core bindings so the shell can ship the
+        # independently from the 27 core bindings so the shell can ship the
         # media backend before a dedicated media-inspector plugin is enabled.
         "inspectMedia", "markdownToHtml", "readText", "writeText",
-        "planConversion", "convertMedia", "getMediaCapabilities", "htmlToText",
+        "planConversion", "convertMedia", "startMediaConversion",
+        "getMediaConversionStatus", "cancelMediaConversion",
+        "getMediaCapabilities", "htmlToText",
         "minimizeWindow", "maximizeWindow", "restoreWindow", "closeWindow",
     ]
+    append!(bindings, setdiff(Backend.handler_names(), bindings))
 
     try
         for name in bindings
@@ -59,10 +61,17 @@ function main()
                     id = ManualWebview.request_id(request)
                     payload = ManualWebview.request_payload(request)
 
-                    if name == "closeWindow" || name == "closeApp"
-                        ManualWebview.return!(webview, id, 0, "null")
-                        ManualWebview.close!(webview)
-                        closed = true
+                    if name == "closeWindow"
+                        if Backend.flush_pending!()
+                            ManualWebview.return!(webview, id, 0, "null")
+                            ManualWebview.close!(webview)
+                            closed = true
+                        else
+                            ManualWebview.return!(webview, id, 1, JSON3.write(Dict(
+                                "code" => "StorageWriteFailed",
+                                "message" => "Pending changes could not be saved.",
+                            )))
+                        end
                     elseif name == "minimizeWindow"
                         ManualWebview.minimize!(webview)
                         ManualWebview.return!(webview, id, 0, "null")
@@ -85,8 +94,12 @@ function main()
             sleep(0.01)
         end
     finally
-        ManualWebview.destroy_queue!(queue)
-        ManualWebview.destroy!(webview)
+        try
+            Backend.flush_pending!()
+        finally
+            ManualWebview.destroy_queue!(queue)
+            ManualWebview.destroy!(webview)
+        end
     end
 end
 

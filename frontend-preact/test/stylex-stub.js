@@ -5,6 +5,14 @@ export function create(styles) {
   return styles;
 }
 
+export function defineVars(vars) {
+  return vars;
+}
+
+export function createTheme(vars) {
+  return vars;
+}
+
 export function props() {
   return { className: 'test-style' };
 }

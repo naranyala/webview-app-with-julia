@@ -3,6 +3,11 @@ import { backend, backendError } from '../backend.js';
 import { noteSaveCoordinator } from '../note-save-coordinator.js';
 import { styles, sx } from '../stylex-styles.js';
 import {
+  parseNotesBackup,
+  planNotesRestore,
+  serializeNotesBackup
+} from './note-backup.js';
+import {
   blocksToHtml,
   escapeHtml,
   PRINT_CSS_RESET,
@@ -51,6 +56,10 @@ export function ChainNotes() {
   const [loadError, setLoadError] = useState('');
   const [saveState, setSaveState] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [backupState, setBackupState] = useState('');
+  const [backupError, setBackupError] = useState('');
+  const [backupFile, setBackupFile] = useState(null);
+  const backupInputRef = useRef(null);
   const saveSubscription = useRef(null);
 
   useEffect(() => {
@@ -231,6 +240,96 @@ export function ChainNotes() {
     return { title: note.title, question: qna.question, answer: qna.answer };
   }
 
+  function hasNativeWriteText() {
+    return (
+      typeof window !== 'undefined' && typeof window.writeText === 'function'
+    );
+  }
+
+  function downloadTextFile(filename, text) {
+    if (
+      typeof document === 'undefined' ||
+      typeof URL === 'undefined' ||
+      typeof URL.createObjectURL !== 'function'
+    ) {
+      throw new Error('File download is not available in this shell.');
+    }
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    try {
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } finally {
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+  }
+
+  async function runBackupExport() {
+    try {
+      setBackupError('');
+      setBackupState('Exporting…');
+      await noteSaveCoordinator.flushAll();
+      const fresh = await backend.getNotes();
+      const all = Array.isArray(fresh) ? fresh : notes;
+      const { filename, json } = serializeNotesBackup(all);
+      if (hasNativeWriteText()) {
+        const volumes = await backend.listVolumes();
+        const home = volumes.find((volume) => volume.id === 'home');
+        if (!home) throw new Error('Home volume is unavailable for backup.');
+        const saved = await backend.writeText(
+          `${home.path}/Documents/${filename}`,
+          json
+        );
+        setBackupState(`Saved ${all.length} notes to ${saved.path}`);
+      } else {
+        downloadTextFile(filename, json);
+        setBackupState(`Downloaded ${filename} (${all.length} notes)`);
+      }
+    } catch (error) {
+      setBackupState('');
+      setBackupError(`Backup export failed: ${backendError(error)}`);
+    }
+  }
+
+  async function runBackupImport() {
+    if (!backupFile) return;
+    try {
+      setBackupError('');
+      setBackupState('Importing…');
+      const text = await backupFile.text();
+      const { notes: incoming, skipped } = parseNotesBackup(text);
+      await noteSaveCoordinator.flushAll();
+      const fresh = await backend.getNotes();
+      const current = Array.isArray(fresh) ? fresh : [];
+      const { toCreate, toUpdate, unchanged } = planNotesRestore(
+        incoming,
+        current
+      );
+      for (const note of toCreate) {
+        await backend.createNote(note.title, note.tag, note.body);
+      }
+      for (const note of toUpdate) {
+        await backend.updateNote(note.id, note.title, note.tag, note.body);
+      }
+      const reloaded = await backend.getNotes();
+      setNotes(Array.isArray(reloaded) ? reloaded : current);
+      if (reloaded[0]) void selectNote(reloaded[0]);
+      setBackupState(
+        `Imported ${toCreate.length}, updated ${toUpdate.length}, unchanged ${unchanged}` +
+          (skipped > 0 ? `, skipped ${skipped}` : '')
+      );
+      setBackupFile(null);
+      if (backupInputRef.current) backupInputRef.current.value = '';
+    } catch (error) {
+      setBackupState('');
+      setBackupError(`Backup import failed: ${backendError(error)}`);
+    }
+  }
+
   async function runExport(kind) {
     const list =
       kind === 'chain'
@@ -297,8 +396,8 @@ export function ChainNotes() {
 
   return (
     <section className={sx('tool-page', 'essay-page')}>
-      <div className={sx('essay-layout')}>
-        <aside className={sx('tool-panel', 'essay-list-pane')}>
+      <div className={sx('essay-frame')}>
+        <aside className={sx('essay-list-pane', 'frame-pane')}>
           <div className={sx('notes-list-heading')}>
             <div>
               <span className={sx('panel-label')}>Essay chain</span>
@@ -325,6 +424,7 @@ export function ChainNotes() {
           <p className={sx('search-engine-note')}>
             {NOTE_SEARCH_ENGINE.detail} / {filteredNotes.length} matches
           </p>
+          <div className={sx('divider')} aria-hidden="true" />
           <div className={sx('essay-list-scroll')}>
             {filteredNotes.map((note) => (
               <button
@@ -349,7 +449,9 @@ export function ChainNotes() {
           </div>
         </aside>
 
-        <article className={sx('tool-panel', 'essay-editor-pane')}>
+        <div className={sx('frame-divider-wide')} aria-hidden="true" />
+
+        <article className={sx('essay-editor-pane', 'frame-pane')}>
           <div>
             <p className={sx('eyebrow')}>Essay workspace</p>
             <h1 className={sx('page-title')}>Chain Notes</h1>
@@ -357,6 +459,7 @@ export function ChainNotes() {
               Grow a seed idea into a long-form essay, then publish the chain.
             </p>
           </div>
+          <div className={sx('divider')} aria-hidden="true" />
           <div className={sx('note-editor-heading')}>
             <div>
               <span className={sx('panel-label')}>
@@ -529,6 +632,49 @@ export function ChainNotes() {
             >
               Extract idea &amp; essay
             </button>
+          </details>
+          <details className={sx('qna-import')}>
+            <summary>Backup &amp; restore</summary>
+            <p className={sx('qna-help')}>
+              Export all essays to a versioned JSON file, or restore from one.
+              Restoring adds missing essays and updates changed ones; a clean
+              restore assigns fresh ids.
+            </p>
+            <div className={sx('note-editor-footer')}>
+              <button
+                type="button"
+                className={sx('text-button')}
+                onClick={runBackupExport}
+              >
+                Export JSON
+              </button>
+              <label>
+                <span className={sx('sr-only')}>Backup file to import</span>
+                <input
+                  ref={backupInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  aria-label="Backup file to import"
+                  onChange={(event) =>
+                    setBackupFile(event.currentTarget.files?.[0] ?? null)
+                  }
+                />
+              </label>
+              <button
+                type="button"
+                className={sx('text-button')}
+                onClick={runBackupImport}
+                disabled={!backupFile}
+              >
+                Import JSON
+              </button>
+            </div>
+            {backupState && <p className={sx('empty-notes')}>{backupState}</p>}
+            {backupError && (
+              <p className={sx('empty-notes')} role="alert">
+                {backupError}
+              </p>
+            )}
           </details>
           <div className={sx('note-editor-footer')}>
             <span>

@@ -70,6 +70,8 @@ export const samplePaper = createPaper({
         'Notes live in a single versioned JSON document (`{ "version": 1, "notes": [...] }`). Writes are ' +
         'atomic: the backend serializes to a temporary file and renames it, so readers never observe a ' +
         'partial state. The schema version leaves room for migrations without breaking existing installs.\n\n' +
+        'The storage invariant can be summarized as $writes \\rightarrow durable\\ state$ when the ' +
+        'shutdown flush completes.\n\n' +
         '## 3.2  Search\n\n' +
         'Exact substring search fails on typos, which are common when recalling half-remembered prompts. ' +
         'The workspace therefore benchmarks several fuzzy engines and ships the fastest selective one ' +
@@ -85,7 +87,14 @@ export const samplePaper = createPaper({
       title: '4  Implementation Notes',
       body:
         'The desktop shell pairs a Julia backend with a Preact frontend over a small typed RPC bridge, ' +
-        'as sketched in Figure 1:\n\n' +
+        'as sketched below:\n\n' +
+        '```mermaid\n' +
+        'flowchart LR\n' +
+        'UI[Preact paper UI] --> RPC[Typed RPC bridge]\n' +
+        'RPC --> API[Julia Backend]\n' +
+        'API --> PDF[Documents/*.pdf]\n' +
+        '```\n\n' +
+        'The system architecture is also shown in Figure 1:\n\n' +
         '![Native shell data flow](fig:architecture)\n\n' +
         'PDF bytes are generated in the frontend, encoded once, and handed to a `savePdf` binding that ' +
         'validates the filename and writes atomically into the user’s Documents folder. A typical save ' +
