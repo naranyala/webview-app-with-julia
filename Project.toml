@@ -10,6 +10,7 @@ Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 LinuxCompanion = "d4f1a0f8-7f43-4e70-a42b-9a4d4f9fb0e2"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 StaticMediaCompanion = "e91f1a4a-b4d4-4f5e-9a0f-1c5cdd08f61a"
 
 [compat]
@@ -18,6 +19,7 @@ Base64 = "1.11.0"
 Dates = "1.11.0"
 JSON3 = "1.14.3"
 LinuxCompanion = "0.1"
+SHA = "0.5, 1"
 StaticMediaCompanion = "0.1"
 julia = "1.10"
 

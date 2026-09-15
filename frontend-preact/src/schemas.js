@@ -324,3 +324,150 @@ export function parseBackendStatus(value) {
         : undefined
   };
 }
+
+export function parseDiagnosticsReport(value) {
+  if (!value || typeof value !== 'object' || !Array.isArray(value.entries))
+    return null;
+  return {
+    schemaVersion: Math.max(
+      1,
+      Math.floor(boundedNumber(value.schemaVersion, 1))
+    ),
+    generatedAt: cleanString(value.generatedAt).slice(0, 64),
+    logPath: cleanString(value.logPath).slice(0, MAX_PATH),
+    entries: value.entries
+      .filter((entry) => entry && typeof entry === 'object')
+      .map((entry) => ({
+        schemaVersion: Math.max(
+          1,
+          Math.floor(boundedNumber(entry.schemaVersion, 1))
+        ),
+        timestamp: cleanString(entry.timestamp).slice(0, 64),
+        level: ['info', 'warn', 'error'].includes(entry.level)
+          ? entry.level
+          : 'info',
+        source: cleanString(entry.source, 'backend').slice(0, MAX_TITLE),
+        event: cleanString(entry.event, 'application.event').slice(
+          0,
+          MAX_TITLE
+        ),
+        requestId: cleanString(entry.requestId).slice(0, MAX_ID),
+        operation: cleanString(entry.operation).slice(0, MAX_TITLE),
+        code: cleanString(entry.code).slice(0, MAX_TITLE),
+        message: cleanString(entry.message).slice(0, MAX_TEXT),
+        category: cleanString(entry.category, 'application').slice(
+          0,
+          MAX_TITLE
+        ),
+        recoverable: entry.recoverable === true,
+        ...(entry.durationMs !== undefined && {
+          durationMs: Math.max(0, boundedNumber(entry.durationMs))
+        }),
+        details:
+          entry.details && typeof entry.details === 'object'
+            ? JSON.parse(JSON.stringify(entry.details))
+            : {}
+      }))
+      .slice(-500)
+  };
+}
+
+export function parseSettings(value) {
+  if (!value || typeof value !== 'object') return null;
+  const workspace = value.workspace;
+  const ui = value.ui;
+  const plugins = value.plugins;
+  const paper = value.paper;
+  if (
+    ![workspace, ui, plugins, paper].every(
+      (item) => item && typeof item === 'object'
+    )
+  )
+    return null;
+  return {
+    schemaVersion: Math.max(
+      1,
+      Math.floor(boundedNumber(value.schemaVersion, 1))
+    ),
+    workspace: {
+      roots: Array.isArray(workspace.roots)
+        ? workspace.roots
+            .filter((root) => typeof root === 'string')
+            .map((root) => root.slice(0, MAX_PATH))
+        : [],
+      defaultNotesPath: cleanString(workspace.defaultNotesPath).slice(
+        0,
+        MAX_PATH
+      )
+    },
+    ui: {
+      theme: ['system', 'light', 'dark'].includes(ui.theme)
+        ? ui.theme
+        : 'system',
+      sidebarCollapsed: ui.sidebarCollapsed === true,
+      fontSize: Math.min(32, Math.max(10, boundedNumber(ui.fontSize, 14)))
+    },
+    plugins: {
+      enabled: Array.isArray(plugins.enabled)
+        ? plugins.enabled.filter((id) => typeof id === 'string')
+        : [],
+      disabled: Array.isArray(plugins.disabled)
+        ? plugins.disabled.filter((id) => typeof id === 'string')
+        : []
+    },
+    paper: {
+      defaultTemplateId: cleanString(paper.defaultTemplateId, 'default').slice(
+        0,
+        MAX_ID
+      ),
+      recentProjects: Array.isArray(paper.recentProjects)
+        ? paper.recentProjects
+            .filter((path) => typeof path === 'string')
+            .map((path) => path.slice(0, MAX_PATH))
+        : []
+    }
+  };
+}
+
+export function parsePaperProjectResult(value) {
+  return value &&
+    typeof value === 'object' &&
+    value.project &&
+    typeof value.project === 'object' &&
+    typeof value.path === 'string'
+    ? value
+    : null;
+}
+
+export function parsePaperProjectValidation(value) {
+  return value &&
+    typeof value === 'object' &&
+    typeof value.valid === 'boolean' &&
+    Array.isArray(value.errors)
+    ? value
+    : null;
+}
+
+export function parseImportBibliographyResult(value) {
+  return value && typeof value === 'object' && Array.isArray(value.entries)
+    ? value
+    : null;
+}
+
+export function parseAddBibtexToProjectResult(value) {
+  return value && typeof value === 'object' && typeof value.added === 'number'
+    ? value
+    : null;
+}
+
+export function parseExportPaperProjectResult(value) {
+  return value && typeof value === 'object' && typeof value.path === 'string'
+    ? value
+    : null;
+}
+
+export function parseListPaperProjectsResult(value) {
+  return value && typeof value === 'object' && Array.isArray(value.projects)
+    ? value
+    : null;
+}

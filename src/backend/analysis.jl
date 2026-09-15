@@ -296,16 +296,6 @@ function _cancel_audio_analysis(args)
     _ok(_audio_job_response(job_id))
 end
 
-function _parse_bibtex(args)
-    length(args) >= 1 || return _err("InvalidArgument", "BibTeX source is required")
-    try
-        entries = BibTeX.parse_bibtex(String(args[1]))
-        _ok([Dict("type" => entry.entry_type, "key" => entry.key, "fields" => entry.fields) for entry in entries])
-    catch error
-        _err("InvalidBibTeX", sprint(showerror, error))
-    end
-end
-
 function _inspect_blend(args)
     length(args) >= 1 || return _err("InvalidArgument", "Blend path is required")
     path, path_error = _validate_read_path(args[1], "Blender")

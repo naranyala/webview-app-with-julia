@@ -8,15 +8,18 @@ dependency order: ManualWebview (no Julia deps) → AudioAnalysisAdapter (Aural)
 """
 module WebViewApp
 
-export AudioAnalysisAdapter, Backend, BibTeX, BlendReader, FileTrees, Jobs, PDFGen,
-    Persistence, StaticMediaAdapter,
+export AudioAnalysisAdapter, Backend, BibTeX, BlendReader, Diagnostics, FileTrees, Jobs, PDFGen,
+    PaperProjects, Persistence, StaticMediaAdapter, WorkspacePolicy,
     calculate_fibonacci, fibonacci, frontend_html, greet, main
 
 include("ManualWebview.jl")
 include("AudioAnalysisAdapter.jl")
 include("Jobs.jl")
 include("Persistence.jl")
+include("Diagnostics.jl")
 include("StaticMediaAdapter.jl")
+include("WorkspacePolicy.jl")
+include("PaperProjects.jl")
 include("fs/FileTrees.jl")
 include("pdf/PDFGen.jl")
 include("bibtex/BibTeX.jl")

@@ -22,6 +22,7 @@ function main()
     # does not have access to.
     bindings = [
         "increment", "reset", "getSystemInfo", "getTimestamp", "getStatus",
+        "getDiagnostics", "clearDiagnostics",
         "getNotes", "createNote", "updateNote", "deleteNote", "savePdf",
         "mirAnalyze",
         "listVolumes", "startAssetScan", "getAssetScanStatus", "cancelAssetScan",

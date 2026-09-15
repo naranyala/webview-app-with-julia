@@ -18,8 +18,10 @@
  */
 
 import { mockBinding } from './backend-mock.js';
+import { recordFrontendDiagnostic } from './diagnostics-store.js';
 import { validateMirInput } from './plugins/mir.js';
 import {
+  parseAddBibtexToProjectResult,
   parseAssetScanJob,
   parseAudioAnalysis,
   parseAudioAnalysisJob,
@@ -27,10 +29,17 @@ import {
   parseBackendStatus,
   parseConversionPlan,
   parseConversionResult,
+  parseDiagnosticsReport,
+  parseExportPaperProjectResult,
+  parseImportBibliographyResult,
+  parseListPaperProjectsResult,
   parseMediaCapabilities,
   parseMediaConversionJob,
   parseMediaInfo,
   parseMediaWriteResult,
+  parsePaperProjectResult,
+  parsePaperProjectValidation,
+  parseSettings,
   parseStudioVolumeList,
   parseTextPayload
 } from './schemas.js';
@@ -166,12 +175,23 @@ function friendlyMessage(code, fallback) {
  * Codes are stable PascalCase tokens for UI switching; messages are display-ready.
  */
 export function errorDetails(error) {
+  const normalize = (code, message, source = {}) => ({
+    code,
+    message: message || friendlyMessage(code, '') || code,
+    category:
+      typeof source.category === 'string' ? source.category : 'application',
+    recoverable: source.recoverable !== false,
+    requestId: typeof source.requestId === 'string' ? source.requestId : '',
+    operation: typeof source.operation === 'string' ? source.operation : '',
+    details:
+      source.details && typeof source.details === 'object' ? source.details : {}
+  });
   if (error && typeof error === 'object' && typeof error.code === 'string') {
     const message =
       typeof error.message === 'string' && error.message
         ? error.message
         : friendlyMessage(error.code, '');
-    return { code: error.code, message: message || error.code };
+    return normalize(error.code, message, error);
   }
 
   const raw = error instanceof Error ? error.message : String(error ?? '');
@@ -180,13 +200,13 @@ export function errorDetails(error) {
     try {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed.code === 'string') {
-        return {
-          code: parsed.code,
-          message:
-            typeof parsed.message === 'string' && parsed.message
-              ? parsed.message
-              : friendlyMessage(parsed.code, raw)
-        };
+        return normalize(
+          parsed.code,
+          typeof parsed.message === 'string' && parsed.message
+            ? parsed.message
+            : friendlyMessage(parsed.code, raw),
+          parsed
+        );
       }
     } catch {
       // Not an envelope; fall through to bare-name handling.
@@ -194,11 +214,14 @@ export function errorDetails(error) {
 
     const name = raw.replace(/^"|"$/g, '');
     if (/^[A-Z][A-Za-z]*$/.test(name)) {
-      return { code: name, message: friendlyMessage(name, raw) };
+      return normalize(name, friendlyMessage(name, raw));
     }
   }
 
-  return { code: 'Unknown', message: raw || 'Backend request failed' };
+  return normalize('Unknown', raw || 'Backend request failed', {
+    category: 'internal',
+    recoverable: false
+  });
 }
 
 export function backendError(error) {
@@ -213,6 +236,8 @@ function withTimeout(promise, name, ms) {
     timer = setTimeout(() => {
       const error = new Error(`${name} timed out after ${ms}ms`);
       error.code = 'Timeout';
+      error.category = 'timeout';
+      error.recoverable = true;
       reject(error);
     }, ms);
   });
@@ -227,18 +252,22 @@ function withTimeout(promise, name, ms) {
 function unavailable(name) {
   const error = new Error(`${name} is unavailable outside the native shell`);
   error.code = 'Unavailable';
+  error.category = 'capability';
   return Promise.reject(error);
 }
 
 function invalidArgument(message) {
   const error = new Error(message);
   error.code = 'InvalidArgument';
+  error.category = 'validation';
   return Promise.reject(error);
 }
 
 function invalidResponse(name) {
   const error = new Error(`${name} returned an invalid response`);
   error.code = 'InvalidResponse';
+  error.category = 'contract';
+  error.recoverable = false;
   return error;
 }
 
@@ -285,7 +314,46 @@ function callBinding(name, ...args) {
   } else {
     result = mockBinding(name, args);
   }
-  return withTimeout(result, name, defaultTimeoutMs);
+  const started =
+    typeof performance !== 'undefined' ? performance.now() : Date.now();
+  return withTimeout(result, name, defaultTimeoutMs).then(
+    (value) => {
+      const durationMs =
+        (typeof performance !== 'undefined' ? performance.now() : Date.now()) -
+        started;
+      if (durationMs >= 250) {
+        recordFrontendDiagnostic({
+          level: 'warn',
+          event: 'bridge.slow',
+          operation: name,
+          message: `${name} completed slowly`,
+          category: 'performance',
+          recoverable: true,
+          durationMs
+        });
+      }
+      return value;
+    },
+    (error) => {
+      const details = errorDetails(error);
+      recordFrontendDiagnostic({
+        level: 'error',
+        event: 'bridge.failed',
+        operation: details.operation || name,
+        requestId: details.requestId,
+        code: details.code,
+        message: details.message,
+        category: details.category,
+        recoverable: details.recoverable,
+        durationMs:
+          (typeof performance !== 'undefined'
+            ? performance.now()
+            : Date.now()) - started,
+        details: details.details
+      });
+      throw error;
+    }
+  );
 }
 
 const CORE_BINDINGS = [
@@ -294,6 +362,8 @@ const CORE_BINDINGS = [
   'getSystemInfo',
   'getTimestamp',
   'getStatus',
+  'getDiagnostics',
+  'clearDiagnostics',
   'getNotes',
   'createNote',
   'updateNote',
@@ -310,6 +380,17 @@ const CORE_BINDINGS = [
   'getAudioAnalysisStatus',
   'cancelAudioAnalysis',
   'parseBibTeX',
+  'importBibliography',
+  'exportBibliography',
+  'addBibtexToProject',
+  'getSettings',
+  'saveSettings',
+  'createPaperProject',
+  'openPaperProject',
+  'savePaperProject',
+  'validatePaperProject',
+  'exportPaperProject',
+  'listPaperProjects',
   'inspectBlend',
   'generatePdf',
   'minimizeWindow',
@@ -334,6 +415,71 @@ export const backend = {
   getTimestamp: () => callBinding('getTimestamp'),
   getStatus: () =>
     parsedBinding('getStatus', callBinding('getStatus'), parseBackendStatus),
+  getDiagnostics: (limit = 200) =>
+    parsedBinding(
+      'getDiagnostics',
+      callBinding('getDiagnostics', limit),
+      parseDiagnosticsReport
+    ),
+  clearDiagnostics: () => callBinding('clearDiagnostics'),
+  getSettings: () =>
+    parsedBinding('getSettings', callBinding('getSettings'), parseSettings),
+  saveSettings: (settings) =>
+    parsedBinding(
+      'saveSettings',
+      callBinding('saveSettings', settings),
+      parseSettings
+    ),
+  createPaperProject: (path, project) =>
+    parsedBinding(
+      'createPaperProject',
+      callBinding('createPaperProject', path, project),
+      parsePaperProjectResult
+    ),
+  openPaperProject: (path) =>
+    parsedBinding(
+      'openPaperProject',
+      callBinding('openPaperProject', path),
+      parsePaperProjectResult
+    ),
+  savePaperProject: (pathOrHandle, project) =>
+    parsedBinding(
+      'savePaperProject',
+      callBinding('savePaperProject', pathOrHandle, project),
+      parsePaperProjectResult
+    ),
+  validatePaperProject: (project) =>
+    parsedBinding(
+      'validatePaperProject',
+      callBinding('validatePaperProject', project),
+      parsePaperProjectValidation
+    ),
+  listPaperProjects: (root) =>
+    parsedBinding(
+      'listPaperProjects',
+      callBinding('listPaperProjects', root),
+      parseListPaperProjectsResult
+    ),
+  exportPaperProject: (pathOrHandle, options = {}) =>
+    parsedBinding(
+      'exportPaperProject',
+      callBinding('exportPaperProject', pathOrHandle, options),
+      parseExportPaperProjectResult
+    ),
+  importBibliography: (path) =>
+    parsedBinding(
+      'importBibliography',
+      callBinding('importBibliography', path),
+      parseImportBibliographyResult
+    ),
+  exportBibliography: (path, entries) =>
+    callBinding('exportBibliography', path, entries),
+  addBibTeXToProject: (pathOrHandle, source) =>
+    parsedBinding(
+      'addBibtexToProject',
+      callBinding('addBibtexToProject', pathOrHandle, source),
+      parseAddBibtexToProjectResult
+    ),
   getNotes: () => callBinding('getNotes'),
   createNote: (title, tag, body) => {
     const validationError = validateNoteFields(undefined, title, tag, body);

@@ -3,10 +3,12 @@ import { AudioEqualizer } from './audio-equalizer.jsx';
 import { BlenderCompanion } from './blender-companion.jsx';
 import { ChainNotes } from './chain-notes.jsx';
 import { defineFrontendPlugin } from './contract.js';
+import { Diagnostics } from './diagnostics.jsx';
 import { DiskScanner } from './disk-scanner.jsx';
 import { IndonesiaMap } from './indonesia-map.jsx';
 import { MediaInspector } from './media-inspector.jsx';
 import { MirLab } from './mir-lab.jsx';
+import { Settings } from './settings.jsx';
 import { TabVault } from './tab-vault.jsx';
 import { TodoApp } from './todo.jsx';
 
@@ -128,6 +130,26 @@ export const todoPlugin = defineFrontendPlugin({
   component: TodoApp
 });
 
+export const settingsPlugin = defineFrontendPlugin({
+  id: 'settings',
+  index: '14',
+  title: 'Settings',
+  description: 'Configure workspaces, appearance, and enabled tools.',
+  tone: 'blue',
+  symbol: 'SETTINGS',
+  component: Settings
+});
+
+export const diagnosticsPlugin = defineFrontendPlugin({
+  id: 'diagnostics',
+  index: '15',
+  title: 'Diagnostics',
+  description: 'Inspect and export structured frontend and backend logs.',
+  tone: 'amber',
+  symbol: 'LOGS',
+  component: Diagnostics
+});
+
 const registeredPlugins = [
   diskScannerPlugin,
   audioEqualizerPlugin,
@@ -138,7 +160,9 @@ const registeredPlugins = [
   indonesiaMapPlugin,
   chainNotesPlugin,
   blenderCompanionPlugin,
-  todoPlugin
+  todoPlugin,
+  settingsPlugin,
+  diagnosticsPlugin
 ];
 const pluginIds = new Set();
 

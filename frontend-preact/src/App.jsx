@@ -25,11 +25,13 @@ const GLYPH = {
   map: '◎',
   notes: '✎',
   blender: '⬢',
-  todo: '✓'
+  todo: '✓',
+  settings: '⚙',
+  diagnostics: '≣'
 };
 
 const GROUPS = [
-  { label: 'Workspace', ids: ['notes', 'todo'] },
+  { label: 'Workspace', ids: ['notes', 'todo', 'settings', 'diagnostics'] },
   { label: 'Library', ids: ['paper', 'tabs', 'media'] },
   { label: 'Studio', ids: ['disk', 'equalizer', 'mir', 'blender'] },
   { label: 'Places', ids: ['map'] }
@@ -63,7 +65,7 @@ const PAPER_DESTINATIONS = [
 const THEME_STORAGE_KEY = 'webview-workbench-theme';
 
 function getInitialTheme() {
-  if (typeof window === 'undefined') return 'dark';
+  if (typeof window === 'undefined') return 'light';
   try {
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
     if (stored === 'light' || stored === 'dark') return stored;
@@ -72,7 +74,7 @@ function getInitialTheme() {
   }
   return window.matchMedia?.('(prefers-color-scheme: light)').matches
     ? 'light'
-    : 'dark';
+    : 'light';
 }
 
 export function App() {
@@ -588,6 +590,9 @@ export function App() {
               onModeChange={activeApp === 'map' ? setMapMode : undefined}
               onProvinceChange={
                 activeApp === 'map' ? setMapProvince : undefined
+              }
+              availablePlugins={
+                activeApp === 'settings' ? frontendPlugins : undefined
               }
             />
           ) : (

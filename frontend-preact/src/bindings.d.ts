@@ -10,6 +10,8 @@ declare global {
     getSystemInfo(): Promise<string>;
     getTimestamp(): Promise<string>;
     getStatus(): Promise<BackendStatus>;
+    getDiagnostics(limit?: number): Promise<DiagnosticsReport>;
+    clearDiagnostics(): Promise<{ cleared: boolean }>;
     getNotes(): Promise<Note[]>;
     createNote(title: string, tag: string, body: string): Promise<Note>;
     updateNote(
@@ -152,6 +154,29 @@ interface BackendStatus {
   features?: number;
   availableFeatures?: number;
   storage?: { status: string };
+}
+
+interface DiagnosticEntry {
+  schemaVersion: number;
+  timestamp: string;
+  level: 'info' | 'warn' | 'error';
+  source: string;
+  event: string;
+  requestId: string;
+  operation: string;
+  code: string;
+  message: string;
+  category: string;
+  recoverable: boolean;
+  durationMs?: number;
+  details: Record<string, unknown>;
+}
+
+interface DiagnosticsReport {
+  schemaVersion: number;
+  generatedAt: string;
+  logPath: string;
+  entries: DiagnosticEntry[];
 }
 
 interface StudioVolume {

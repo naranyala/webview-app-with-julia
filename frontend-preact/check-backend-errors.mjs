@@ -70,7 +70,7 @@ await withWindow(
   {
     increment: () =>
       Promise.reject(
-        new Error('{"code":"MalformedJson","message":"arguments must be JSON"}')
+        new Error('{"code":"MalformedJson","message":"arguments must be JSON","category":"validation","recoverable":true,"requestId":"req-test","operation":"increment"}')
       )
   },
   async () => {
@@ -85,6 +85,10 @@ await withWindow(
         details.message === 'arguments must be JSON',
         details.message
       );
+      check('envelope category preserved', details.category === 'validation');
+      check('envelope request id preserved', details.requestId === 'req-test');
+      check('envelope operation preserved', details.operation === 'increment');
+      check('envelope recoverability preserved', details.recoverable === true);
     }
   }
 );

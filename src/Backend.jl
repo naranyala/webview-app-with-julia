@@ -29,6 +29,9 @@ using ..Jobs
 using ..PDFGen
 using ..Persistence
 using ..StaticMediaAdapter
+using ..Diagnostics
+using ..PaperProjects
+using ..WorkspacePolicy
 
 export handle_request, flush_pending!, register_handler!, unregister_handler!, handler_names
 
@@ -39,6 +42,7 @@ export handle_request, flush_pending!, register_handler!, unregister_handler!, h
 const CONFIG_DIR = joinpath(homedir(), ".config", "julia-starter")
 const NOTES_FILE = joinpath(CONFIG_DIR, "notes.json")
 const SETTINGS_FILE = joinpath(CONFIG_DIR, "settings.json")
+const DIAGNOSTICS_FILE = joinpath(CONFIG_DIR, "logs", "application.jsonl")
 const NOTES_STORE = Persistence.Store(NOTES_FILE; schema_version=1, max_bytes=4 * 1024 * 1024)
 
 # ── State ────────────────────────────────────────────────────────────────────
@@ -81,7 +85,12 @@ const STATE = AppState(
 # The webview bridge transports only a status integer and a JSON string. Keep
 # this wire contract in one place so every handler returns the same shape.
 _ok(data) = (0, JSON3.write(data))
-_err(code::AbstractString, msg::AbstractString) = (1, JSON3.write(Dict("code" => code, "message" => msg)))
+function _err(code::AbstractString, msg::AbstractString; request_id="", operation="",
+              category="application", recoverable=true)
+    (1, JSON3.write(Dict("schemaVersion" => 1, "code" => code, "message" => msg,
+        "requestId" => request_id, "operation" => operation,
+        "category" => category, "recoverable" => recoverable)))
+end
 
 function _parse_args(payload::AbstractString)
     (payload == "" || payload == "null" || payload == "\"\"") && return Any[]
@@ -345,6 +354,9 @@ include("backend/notes.jl")
 include("backend/pdf.jl")
 include("backend/analysis.jl")
 include("backend/media.jl")
+include("backend/settings.jl")
+include("backend/paper_projects.jl")
+include("backend/bibtex_adapter.jl")
 include("backend/router.jl")
 
 end

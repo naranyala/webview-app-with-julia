@@ -3,6 +3,14 @@ import { analyzeSamples, validateMirInput } from './plugins/mir.js';
 const MOCK_NOTES_STORAGE_KEY = 'webview-app.chain-notes';
 
 let mockNotes = loadMockNotes();
+let mockDiagnostics = [];
+let mockSettings = {
+  schemaVersion: 1,
+  workspace: { roots: [], defaultNotesPath: '' },
+  ui: { theme: 'system', sidebarCollapsed: false, fontSize: 14 },
+  plugins: { enabled: [], disabled: [] },
+  paper: { defaultTemplateId: 'default', recentProjects: [] }
+};
 const MOCK_MEDIA_CONTRACT = Object.freeze({
   schemaVersion: 1,
   provenance: {
@@ -63,6 +71,21 @@ export function mockBinding(name, args) {
   let result;
   if (name === 'getNotes') {
     result = Promise.resolve(mockNotes.map((note) => ({ ...note })));
+  } else if (name === 'getDiagnostics') {
+    result = Promise.resolve({
+      schemaVersion: 1,
+      generatedAt: new Date().toISOString(),
+      logPath: '',
+      entries: [...mockDiagnostics]
+    });
+  } else if (name === 'clearDiagnostics') {
+    mockDiagnostics = [];
+    result = Promise.resolve({ cleared: true });
+  } else if (name === 'getSettings') {
+    result = Promise.resolve(structuredClone(mockSettings));
+  } else if (name === 'saveSettings') {
+    mockSettings = structuredClone(args[0]);
+    result = Promise.resolve(structuredClone(mockSettings));
   } else if (name === 'createNote') {
     const [title, tag, body] = args;
     const note = {

@@ -48,6 +48,67 @@ does not yet provide event-loop primitives.
 operations remain on the correct thread, measured idle CPU and latency improve
 over the polling baseline, and all existing tests pass.
 
+## Bug Fixes and Code Quality
+
+This section tracks issues identified through code analysis. Items are grouped
+by priority: critical bugs (P0), validation hardening (P1), and code
+duplication/abstraction improvements (P2).
+
+### Critical bugs — P0
+
+- [x] Fix `_is_within_workspace` undefined function in `paper_projects.jl`.
+  Replaced with `WorkspacePolicy.contains_path`.
+- [x] Route `parseBibTeX` to the version with size validation. Removed duplicate
+  from `analysis.jl`; renamed `_parse_bibtex_adapter` to `_parse_bibtex` in
+  `bibtex_adapter.jl` which checks `MAX_BIBTEX_BYTES`.
+- [x] Unify filename regex between `_save_pdf` and `_generate_pdf` in `pdf.jl`.
+  Both now use case-insensitive matching with `\-` in the character class.
+- [x] Fix `invalidResponse` in `backend.js` to return `Promise.reject(error)`
+  instead of returning the Error object directly.
+- [x] Fix `parseAudioAnalysisJob` in `schemas.js` to not discard valid jobs
+  when analysis field parsing fails; return job structure without analysis.
+- [x] Add null check to `parseAddBibtexToProjectResult` in `schemas.js` for
+  the `parsePaperProject` return value.
+- [x] Fix handler registration order in `router.jl` so `_get_diagnostics` and
+  `_clear_diagnostics` are defined before the `HANDLERS` dict references them.
+- [x] Add SHA stdlib to `Project.toml` with correct UUID for Julia 1.13.
+
+### Validation hardening — P1
+
+- [ ] Add LRU eviction or TTL-based pruning to `PAPER_PROJECT_HANDLES` dict
+  in `paper_projects.jl` to prevent unbounded memory growth.
+- [ ] Add type validation (`AbstractVector`, `Number`) to `_mir_analyze` in
+  `analysis.jl` for `samples` and `sample_rate` arguments.
+- [ ] Add `MAX_NOTE_BODY` size limit to `_generate_pdf` body argument in
+  `pdf.jl` to prevent excessive memory usage.
+- [ ] Add `MAX_BIBLIOGRAPHY_ENTRIES` limit to `_export_bibliography` entries
+  array in `bibtex_adapter.jl`.
+- [ ] Add `AbstractVector` check to `_add_bibtex_to_project` in
+  `bibtex_adapter.jl` for `project["references"]`.
+- [x] Fix `unmountedRef` in `disk-scanner.jsx` to reset on remount for
+  React 18/Preact strict mode compatibility.
+- [x] Await `selectNote(note)` call in `chain-notes.jsx` `createNote`
+  function to prevent unhandled promise rejections.
+
+### Code duplication and abstraction — P2
+
+- [ ] Extract path validation + error-unpacking pattern into helper function.
+  Currently repeated 10+ times across `media.jl`, `analysis.jl`, and
+  `bibtex_adapter.jl`.
+- [ ] Extract error-code mapping for `WorkspacePolicy.PolicyError` into shared
+  helper. Currently duplicated in `Backend.jl`, `paper_projects.jl`.
+- [ ] Extract `formatBytes` into shared utility module. Currently triplicated
+  in `media-inspector.jsx`, `disk-scanner.jsx`, `tab-vault.jsx` with
+  inconsistent behavior.
+- [ ] Extract string validation helper in `backend.js` to reduce repeated
+  `typeof x !== 'string' || !x.trim()` pattern (12+ occurrences).
+- [ ] Convert `friendlyMessage` switch statement in `backend.js` to constant
+  map for better readability and maintainability.
+- [ ] Convert `mockBinding` if/else chain in `backend-mock.js` to dispatch
+  table (330-line function).
+- [ ] Add per-plugin error boundaries in `App.jsx` to prevent single plugin
+  crash from taking down entire application.
+
 ## Scope Boundary
 
 webview-app-with-julia owns:
@@ -534,6 +595,50 @@ export results without coupling the UI to Aural internals.
 - [ ] Backend integration tests (Julia → frontend round-trip).
 - [ ] Plugin unit tests for all registered plugins.
 - [ ] E2E tests with WebView running.
+
+---
+
+## Diagnostics and error handling follow-up `[~]`
+
+The first implementation pass now provides versioned error envelopes, request
+IDs, error categories, recoverability hints, bounded frontend diagnostics, a
+rotating backend JSONL log, and a searchable Diagnostics tool. The remaining
+work was intentionally stopped and is tracked here:
+
+- [ ] Add focused Julia tests for `Diagnostics.record!`, bounded retention,
+  JSONL rotation, clearing, and failures when the log directory is unavailable.
+- [ ] Add backend router contract tests proving every handler error includes
+  `schemaVersion`, `requestId`, `operation`, `category`, and `recoverable`, and
+  that internal exception details never cross the frontend boundary.
+- [ ] Add frontend unit tests for diagnostics retention, immutable snapshots,
+  filtering, copy/export, clearing, timeout logging, and invalid backend log
+  entries.
+- [ ] Complete a clean component-test run. The non-component frontend suite
+  passed during implementation, but the Vitest component phase was interrupted
+  before it emitted a result.
+- [ ] Run the full Julia package suite and native bridge smoke test, including
+  `getDiagnostics` and `clearDiagnostics`, after the restored paper/settings
+  bindings have been reconciled with any concurrent edits.
+- [ ] Harden shell-owned window-operation errors so they use the same envelope
+  and diagnostic recorder as ordinary backend router failures.
+- [ ] Define a centralized error-code registry instead of category inference
+  from string prefixes; document ownership, user-facing wording, retry policy,
+  and HTTP-like severity for each code.
+- [ ] Add recursive redaction and size limits for diagnostic `details` before
+  persistence/export (tokens, credentials, home paths, document content, and
+  oversized stack traces).
+- [ ] Load recent JSONL entries at startup so diagnostics survive application
+  restarts, while tolerating malformed/truncated lines after a crash.
+- [ ] Add correlation IDs to background scan, audio, and conversion jobs so a
+  request can be followed through queued, running, completed, cancelled, and
+  failed events.
+- [ ] Add an opt-in support-bundle export containing diagnostics, app/runtime
+  versions, capability status, and sanitized settings—never user documents.
+- [ ] Update backend API and architecture documentation with the error envelope
+  schema, JSONL event schema, log location/rotation policy, and examples for AI
+  agents and human troubleshooting.
+- [ ] Add CI assertions for schema backward compatibility and verify diagnostics
+  failures can never fail the user operation being observed.
 
 ---
 

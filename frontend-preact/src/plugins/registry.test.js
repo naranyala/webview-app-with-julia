@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { frontendPlugins, getFrontendPlugin } from './index.js';
 
 describe('frontend plugin registry', () => {
-  test('exposes the ten launcher tools in display order', () => {
+  test('exposes the launcher tools in display order', () => {
     expect(frontendPlugins.map((plugin) => plugin.id)).toEqual([
       'disk',
       'equalizer',
@@ -13,9 +13,11 @@ describe('frontend plugin registry', () => {
       'map',
       'notes',
       'blender',
-      'todo'
+      'todo',
+      'settings',
+      'diagnostics'
     ]);
-    expect(new Set(frontendPlugins.map((plugin) => plugin.id)).size).toBe(10);
+    expect(new Set(frontendPlugins.map((plugin) => plugin.id)).size).toBe(12);
     expect(
       frontendPlugins.every(
         (plugin) => plugin.title && plugin.description && plugin.component
