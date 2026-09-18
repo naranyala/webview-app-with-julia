@@ -32,6 +32,55 @@ _strings(value) = value isa AbstractVector ? String[
 ] : String[]
 _text(value, default="") = value isa AbstractString ? String(value) : default
 
+function _table_of_contents(input, sections)
+    raw = get(input, "tableOfContents", nothing)
+    raw isa AbstractDict || (raw = Dict{String,Any}())
+    raw_entries = get(raw, "entries", nothing)
+    entries = Any[]
+    if raw_entries isa AbstractVector
+        for (index, item) in enumerate(raw_entries)
+            item isa AbstractDict || continue
+            section_id = _text(get(item, "sectionId", get(item, "id", "")))
+            title = _text(get(item, "title", ""))
+            isempty(section_id) && continue
+            isempty(title) && (title = section_id)
+            push!(entries, Dict{String,Any}(
+                "id" => _text(get(item, "id", "toc-$index"), "toc-$index"),
+                "sectionId" => section_id,
+                "title" => title,
+                "level" => (level_val = get(item, "level", 1); level_val isa Integer ? max(1, Int(level_val)) : 1),
+                "order" => get(item, "order", index) isa Integer ? Int(item["order"]) : index,
+                "visible" => get(item, "visible", true) isa Bool ? item["visible"] : true,
+                "page" => get(item, "page", nothing),
+            ))
+        end
+    end
+    if isempty(entries)
+        for (index, section) in enumerate(sections)
+            section isa AbstractDict || continue
+            section_id = _text(get(section, "id", ""))
+            title = _text(get(section, "title", ""))
+            isempty(section_id) && continue
+            isempty(title) && continue
+            push!(entries, Dict{String,Any}(
+                "id" => "toc-$section_id",
+                "sectionId" => section_id,
+                "title" => title,
+                "level" => (level_val = get(section, "level", 1); level_val isa Integer ? max(1, Int(level_val)) : 1),
+                "order" => index,
+                "visible" => true,
+                "page" => nothing,
+            ))
+        end
+    end
+    Dict{String,Any}(
+        "schemaVersion" => 1,
+        "mode" => _text(get(raw, "mode", "derived"), "derived") in ("derived", "manual") ?
+            _text(get(raw, "mode", "derived"), "derived") : "derived",
+        "entries" => entries,
+    )
+end
+
 # Hash a canonical JSON projection so key insertion order cannot change the
 # identity of a project or any future reproducibility record that embeds it.
 function _canonical_json(value)
@@ -105,6 +154,7 @@ function normalize_project(value)
         "keywords" => _strings(get(input, "keywords", Any[])),
         "sections" => _objects(get(input, "sections", Any[])),
         "references" => _objects(get(input, "references", Any[])),
+        "tableOfContents" => _table_of_contents(input, _objects(get(input, "sections", Any[]))),
         "figures" => _objects(get(input, "figures", Any[])),
         "tables" => _objects(get(input, "tables", Any[])),
         "supplementaryMaterial" => _objects(get(input, "supplementaryMaterial", Any[])),
@@ -113,10 +163,55 @@ function normalize_project(value)
         "exportProfiles" => _objects(get(input, "exportProfiles", Any[])),
         "extensionState" => get(input, "extensionState", nothing) isa AbstractDict ?
             Persistence.normalize_json(input["extensionState"]) : Dict{String,Any}(),
-        "provenance" => get(input, "provenance", nothing) isa AbstractDict ?
-            Persistence.normalize_json(input["provenance"]) : Dict{String,Any}(),
+        "layout" => get(input, "layout", nothing) isa AbstractDict ?
+            Persistence.normalize_json(input["layout"]) : Dict{String,Any}(
+                "columns" => 2,
+                "margins" => Dict("top" => 48, "bottom" => 48, "left" => 48, "right" => 48),
+                "fonts" => Dict("title" => "Helvetica", "heading" => "Helvetica-Bold", "body" => "Helvetica"),
+            ),
+        "source" => get(input, "source", nothing) isa AbstractDict ?
+            Persistence.normalize_json(input["source"]) : Dict{String,Any}(
+                "importedFrom" => "",
+                "importedAt" => "",
+            ),
+        "provenance" => _provenance(get(input, "provenance", nothing)),
     )
     project
+end
+
+function _provenance(input)
+    base = input isa AbstractDict ? Persistence.normalize_json(input) : Dict{String,Any}()
+    Dict{String,Any}(
+        "schemaVersion" => get(base, "schemaVersion", 1),
+        "importedFrom" => _text(get(base, "importedFrom", "")),
+        "importedAt" => _text(get(base, "importedAt", "")),
+        "importedHash" => _text(get(base, "importedHash", "")),
+        "importWarnings" => _strings(get(base, "importWarnings", Any[])),
+        "artifacts" => _artifacts(get(base, "artifacts", Any[])),
+        "searchSources" => _objects(get(base, "searchSources", Any[])),
+        "mediaSources" => _objects(get(base, "mediaSources", Any[])),
+        "audioSources" => _objects(get(base, "audioSources", Any[])),
+    )
+end
+
+function _artifacts(input)
+    items = _objects(input)
+    result = Dict{String,Any}[]
+    for item in items
+        item isa AbstractDict || continue
+        push!(result, Dict{String,Any}(
+            "id" => _text(get(item, "id", "")),
+            "kind" => _text(get(item, "kind", "unknown")),
+            "path" => _text(get(item, "path", "")),
+            "hash" => _text(get(item, "hash", "")),
+            "mimeType" => _text(get(item, "mimeType", "")),
+            "sourceUrl" => _text(get(item, "sourceUrl", "")),
+            "license" => _text(get(item, "license", "")),
+            "capturedAt" => _text(get(item, "capturedAt", "")),
+            "warnings" => _strings(get(item, "warnings", Any[])),
+        ))
+    end
+    result
 end
 
 function _duplicate_errors(items, kind, key)
@@ -133,6 +228,24 @@ function _duplicate_errors(items, kind, key)
         end
     end
     errors
+end
+
+function _citation_keys(project)
+    cited = Set{String}()
+    texts = String[]
+    abstract_text = get(project, "abstract", "")
+    abstract_text isa AbstractString && push!(texts, String(abstract_text))
+    for section in get(project, "sections", Any[])
+        section isa AbstractDict || continue
+        body = get(section, "body", "")
+        body isa AbstractString && push!(texts, String(body))
+    end
+    for text in texts
+        for match in eachmatch(r"\[@([A-Za-z0-9][A-Za-z0-9:_-]*)", text)
+            push!(cited, String(match.captures[1]))
+        end
+    end
+    cited
 end
 
 function validate_project(value)
@@ -175,6 +288,58 @@ function validate_project(value)
     append!(errors, _duplicate_errors(project["references"], "reference", "key"))
     append!(errors, _duplicate_errors(project["figures"], "figure", "id"))
     append!(errors, _duplicate_errors(project["tables"], "table", "id"))
+    for (index, figure) in enumerate(project["figures"])
+        figure isa AbstractDict || (push!(errors, "figure $index must be an object"); continue)
+        get(figure, "id", nothing) isa AbstractString && !isempty(figure["id"]) ||
+            push!(errors, "figure $index needs an id")
+        get(figure, "path", nothing) isa AbstractString && !isempty(figure["path"]) ||
+            push!(errors, "figure $index needs a path")
+    end
+    provenance = project["provenance"]
+    provenance isa AbstractDict || push!(errors, "provenance must be an object")
+    if provenance isa AbstractDict
+        artifacts = get(provenance, "artifacts", Any[])
+        artifacts isa AbstractVector || push!(errors, "provenance.artifacts must be an array")
+        if artifacts isa AbstractVector
+            for (index, artifact) in enumerate(artifacts)
+                artifact isa AbstractDict || (push!(errors, "provenance artifact $index must be an object"); continue)
+                get(artifact, "id", nothing) isa AbstractString && !isempty(artifact["id"]) ||
+                    push!(errors, "provenance artifact $index needs an id")
+                get(artifact, "kind", nothing) isa AbstractString && !isempty(artifact["kind"]) ||
+                    push!(errors, "provenance artifact $index needs a kind")
+            end
+            append!(errors, _duplicate_errors(artifacts, "provenance artifact", "id"))
+        end
+    end
+
+    reference_keys = Set{String}(
+        String(reference["key"]) for reference in project["references"]
+        if reference isa AbstractDict && get(reference, "key", nothing) isa AbstractString
+    )
+    cited_keys = _citation_keys(project)
+    for key in sort!(collect(setdiff(cited_keys, reference_keys)))
+        push!(errors, "citation references missing key: $key")
+    end
+    for key in sort!(collect(setdiff(reference_keys, cited_keys)))
+        push!(warnings, "reference is not cited: $key")
+    end
+
+    section_ids = Set{String}(
+        String(section["id"]) for section in sections
+        if section isa AbstractDict && get(section, "id", nothing) isa AbstractString
+    )
+    toc = project["tableOfContents"]
+    toc["mode"] in ("derived", "manual") || push!(errors, "table of contents mode must be derived or manual")
+    toc_entries = get(toc, "entries", Any[])
+    append!(errors, _duplicate_errors(toc_entries, "table-of-contents", "id"))
+    for (index, entry) in enumerate(toc_entries)
+        entry isa AbstractDict || (push!(errors, "table-of-contents entry $index must be an object"); continue)
+        section_id = get(entry, "sectionId", nothing)
+        section_id isa AbstractString && section_id in section_ids ||
+            push!(errors, "table-of-contents entry $index references an unknown section")
+        level = get(entry, "level", nothing)
+        level isa Integer && level >= 1 || push!(errors, "table-of-contents entry $index has an invalid level")
+    end
 
     template = project["template"]
     isempty(_text(get(template, "id", ""))) && push!(errors, "template id is required")

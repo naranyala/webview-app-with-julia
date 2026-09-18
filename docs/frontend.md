@@ -1,102 +1,39 @@
 # Frontend guide
 
-## Stack and commands
+## Production application
 
-The frontend uses Preact 10, esbuild, StyleX, Leaflet, and client-side PDF
-libraries. The package scripts are defined in `frontend-preact/package.json`.
+The launcher loads the Octane/Rsbuild application in `frontend/`. Its source
+entry point is `frontend/src/index.js`; the application shell is in
+`frontend/src/App.tsrx`; and `frontend/src/backend.js` is the only browser-to-
+Julia bridge adapter.
 
 ```sh
-npm --prefix frontend-preact run dev          # check, watch, serve on :3000
-npm --prefix frontend-preact run build        # check, binding check, bundle
-npm --prefix frontend-preact run check        # Biome check
-npm --prefix frontend-preact run check:write  # apply safe Biome fixes
-npm --prefix frontend-preact run test         # utility checks + component tests
-npm --prefix frontend-preact run map:check    # validate bundled map data
+npm --prefix frontend ci
+npm --prefix frontend run dev       # serve on :3000
+npm --prefix frontend test          # bridge adapter tests
+npm --prefix frontend run check     # Biome lint and formatting check
+npm --prefix frontend run build     # check and produce the inline HTML bundle
+npm --prefix frontend run verify    # check, test, and build
 ```
 
-The source entry point is `src/main.jsx`; it imports the global CSS, mounts
-`App`, and wraps the application in `ErrorBoundary`.
+`frontend/dist/index.html` is generated and ignored by Git. The single-file
+plugin in `frontend/scripts/single-file-html-plugin.js` inlines the local CSS
+and JavaScript so the native launcher can load it with `webview_set_html`.
 
 ## Adding a tool
 
-Plugins implement the manifest contract in `src/plugins/contract.js`:
+Add a tool to the relevant entry in `WORKSPACES` in `frontend/src/App.tsrx`,
+then implement a renderer for that tool. Do not expose a tool card until its
+view is reachable; otherwise a user can navigate into an empty workspace.
 
-```js
-defineFrontendPlugin({
-  id: 'example',
-  index: '10',
-  title: 'Example',
-  description: 'Short launcher description.',
-  tone: 'blue',
-  symbol: 'EXAMPLE',
-  component: Example
-});
-```
+All native calls must go through `writingBackend` or `musicBackend` in
+`frontend/src/backend.js`. Add a focused `node:test` case in `frontend/test/`
+when expanding that adapter. Browser development intentionally rejects native
+calls rather than returning fake data, which keeps the desktop contract
+observable during development.
 
-To make a component reachable, import it in `src/plugins/index.js`, create a
-manifest entry, and add that entry to `registeredPlugins`. The registry checks
-for duplicate IDs. The shell automatically exposes non-tool entries on the
-primary rail and entries in `TOOL_IDS` under Tools.
+## Legacy frontend
 
-Keep plugin state inside the plugin. Use `backend.js` for native
-operations and the shared autosave registry when a workspace has pending data
-that must be flushed before navigation or window close.
-
-## Data and rendering conventions
-
-- `stylex-styles.js` exposes the shared StyleX facade; token and style definitions
-  are grouped in `stylex-tokens.stylex.js` and the domain-specific `stylex-*.js`
-  modules.
-- `stylex.css` contains global CSS and third-party/legacy styles that are not
-  emitted by StyleX.
-- `note-markdown.js` provides a deterministic Markdown subset used by notes and
-  paper content.
-- `paper.js` and `note-pdf.js` use shared block models so screen output, print
-  output, and PDF output stay aligned.
-- `note-pdf-jspdf.js` owns the jsPDF renderer while `note-pdf.js` keeps block
-  construction and exporter selection.
-- `paper-extensions.js` provides the academic-content extension registry. Its
-  built-in Mermaid and MathJax adapters keep escaped source visible offline;
-  hosts may progressively enhance those regions by providing
-  `globalThis.mermaid` and `globalThis.MathJax`.
-- `schemas.js` normalizes malformed native payloads instead of allowing invalid
-  backend data to reach renderers.
-
-Paper extensions can be added without changing the Markdown parser:
-
-```js
-registerPaperExtension({
-  id: 'citation-network',
-  matches: (block) => block.type === 'code' && block.lang === 'citegraph',
-  renderHtml: (block) => renderCitationNetwork(block.text)
-});
-```
-
-Extension renderers own their HTML contract; built-ins escape source and expose
-`data-mermaid`/`data-math` markers so optional host libraries can enhance the
-reader after it mounts. PDF export preserves unsupported extension source as a
-readable code or text block.
-
-Avoid importing a plugin component into the shell without registering it. A
-component can be fully implemented and tested while remaining invisible to the
-user if it is absent from `registeredPlugins`.
-
-## Bundled map data
-
-`src/plugins/indonesia-map-data.js` is generated, checked-in data containing 38
-provinces and 514 administrative areas. Refresh it with:
-
-```sh
-npm --prefix frontend-preact run map:refresh
-npm --prefix frontend-preact run map:check
-```
-
-`src/plugins/indonesia-map-crosswalk.js` is the matching administrative
-name/type/code reference data. These large files are data artifacts, not
-behavioral modules, so they remain separate from the map logic.
-
-The refresh script downloads the pinned GeoBoundaries source revision unless
-`INDONESIA_MAP_SOURCE_FILE` points to a local GeoJSON file. It applies the
-crosswalk in `indonesia-map-crosswalk.js`, excludes five non-administrative
-features, simplifies coordinates with tolerance `0.03`, and writes the module
-used by the offline map.
+`frontend-preact/` is retained as an archived reference implementation and
+contains its historical plugin suite and tests. It is not built or launched by
+`run.sh`; do not add production features or acceptance checks there.

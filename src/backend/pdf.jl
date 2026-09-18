@@ -32,6 +32,8 @@ function _generate_pdf(args)
     all(value -> value isa AbstractString, args[1:3]) ||
         return _err("InvalidArgument", "Filename, title, and body must be text")
     filename, title, body = args[1], args[2], args[3]
+    ncodeunits(body) <= MAX_NOTE_BODY ||
+        return _err("PdfTooLarge", "PDF body exceeds the $(MAX_NOTE_BODY)-byte limit")
     # Optional fourth argument selects the academic layout. Existing three
     # argument calls keep the single-column default.
     layout = length(args) >= 4 ? args[4] : "single"
@@ -41,7 +43,7 @@ function _generate_pdf(args)
         (layout == "two-column" || layout == "double" ? 2 : nothing)
     columns === nothing &&
         return _err("InvalidArgument", "Layout must be \"single\" or \"two-column\"")
-    occursin(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}\.pdf$", filename) ||
+    occursin(r"^[A-Za-z0-9][A-Za-z0-9._\-]{0,95}\.pdf$"i, filename) ||
         return _err("InvalidPdfName", "Filename must be alphanumeric with .pdf extension")
     directory = joinpath(homedir(), "Documents")
     path = _safe_path(directory, filename)

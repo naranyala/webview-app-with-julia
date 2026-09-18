@@ -5,12 +5,12 @@
 This Linux desktop application uses Julia to create the native window and
 communicate with an HTML frontend through the official
 [webview](https://github.com/webview/webview) C API. The frontend is built with
-Preact, esbuild, and StyleX, then emitted as a self-contained HTML document for
+Octane, Rsbuild, and Tailwind CSS, then emitted as a self-contained HTML document for
 the desktop launcher.
 
 The frontend can also run in a browser. Missing `window.*` bindings are handled
-by the adapter in `frontend-preact/src/backend.js`, so frontend development does
-not require opening a native window.
+by the adapter in `frontend/src/backend.js`. The production application requires
+the Julia WebView; unavailable browser calls reject with a clear error.
 
 ## Prerequisites
 
@@ -40,7 +40,7 @@ For Fedora or AlmaLinux, use the corresponding `gtk3-devel` and
 Install the frontend dependencies:
 
 ```sh
-npm --prefix frontend-preact ci
+npm --prefix frontend ci
 ```
 
 Instantiate the Julia project:
@@ -66,11 +66,28 @@ Run the application with:
 missing or stale, builds the native WebView libraries when needed, instantiates
 Julia dependencies, and launches `bin/webview_app.jl`.
 
+## User-local installation
+
+After building the frontend and native libraries, install a runnable copy under
+the current user's home directory:
+
+```sh
+julia --startup-file=no bin/install.jl --dry-run
+julia --startup-file=no bin/install.jl
+```
+
+The default locations are `~/.local/opt/webview-app`, `~/.local/bin/webview-app`,
+and `~/.local/share/applications/webview-app.desktop`. Use `--prefix=/path` or
+`--bin-dir=/path` to choose another user-owned location; `--no-desktop` skips
+the desktop entry. The installer does not use `sudo`; native distro packages
+and a self-contained release bundle remain future work.
+
 Options:
 
 ```sh
 ./run.sh --build       # force frontend and native rebuilds
 ./run.sh --dev         # launch with WebView developer tools enabled
+./run.sh --devtools    # alias for --dev
 ./run.sh --build-dev   # force rebuild and enable developer tools
 ./run.sh --help
 ```
@@ -84,12 +101,12 @@ The native build downloads WebView v0.12.0 into the ignored
 Build the pieces independently when debugging a failure:
 
 ```sh
-npm --prefix frontend-preact run build
+npm --prefix frontend run build
 ./native/build_webview.sh
 julia --project=. bin/webview_app.jl
 ```
 
-The production launcher loads `frontend-preact/dist/index.html`. That file is
+The production launcher loads `frontend/dist/index.html`. That file is
 generated and ignored by Git, so a fresh checkout must build the frontend
 before launching.
 
@@ -98,15 +115,14 @@ before launching.
 Run the browser development server on port 3000:
 
 ```sh
-npm --prefix frontend-preact run dev
+npm --prefix frontend run dev
 ```
 
-Open <http://localhost:3000>. The development server uses the mock backend and
-does not require Julia, GTK, WebKitGTK, or the native libraries.
+Open <http://localhost:3000>. Native operations are unavailable in this mode;
+use the desktop launcher to exercise the Julia bridge.
 
-`npm --prefix frontend-preact run serve` serves the existing `public/` assets
-without the check/watch step. `npm --prefix frontend-preact run dev` runs the
-formatter/linter check first and then starts the esbuild watch server.
+`npm --prefix frontend run preview` serves a production build. The development
+server starts with `npm --prefix frontend run dev`.
 
 ## Runtime overrides
 
@@ -118,3 +134,4 @@ The launcher supports these environment variables:
 | `JULIA_WEBVIEW_LIBRARY` | Override the WebView shared library path. |
 | `JULIA_WEBVIEW_BRIDGE_LIBRARY` | Override the Julia queue bridge path. |
 | `JULIA_WEBVIEW_DEBUG=1` | Enable WebView debug mode. |
+| `JULIA_WEBVIEW_DEVTOOLS=1` | Enable WebView developer tools. |

@@ -12,6 +12,7 @@ empty!(Backend.STATE.audio_jobs)
 empty!(Backend.STATE.media_jobs)
 empty!(Backend.STATE.jobs.jobs)
 empty!(Backend.STATE.volumes)
+WebViewApp.BoundedCache.cache_clear!(Backend.STATE.media_cache)
 
 @testset "Backend.jl" begin
 
@@ -89,6 +90,25 @@ empty!(Backend.STATE.volumes)
         @test status == 0
         info = JSON3.read(result)
         @test info["status"] == "ok"
+    end
+
+    @testset "media cache handlers" begin
+        status, result = Backend.handle_request("getMediaCacheStats", "")
+        @test status == 0
+        stats = JSON3.read(result)
+        @test stats["stats"]["entries"] == 0
+        @test stats["stats"]["maxEntries"] == 256
+
+        WebViewApp.BoundedCache.cache_put!(Backend.STATE.media_cache, "test-key", "cached"; size_bytes=16)
+        status, result = Backend.handle_request("getMediaCacheStats", "")
+        @test status == 0
+        @test JSON3.read(result)["stats"]["entries"] == 1
+
+        status, result = Backend.handle_request("clearMediaCache", "")
+        @test status == 0
+        cleared = JSON3.read(result)
+        @test cleared["cleared"] == true
+        @test cleared["stats"]["entries"] == 0
     end
 
     @testset "notes CRUD" begin
@@ -180,6 +200,14 @@ empty!(Backend.STATE.volumes)
         @test status == 1
         err = JSON3.read(result)
         @test err["code"] == "InvalidAudioInput"
+
+        status, result = Backend.handle_request("mirAnalyze", JSON3.write(["not samples", 44100]))
+        @test status == 1
+        @test JSON3.read(result)["code"] == "InvalidAudioInput"
+
+        status, result = Backend.handle_request("mirAnalyze", JSON3.write([[0.1], "44100"]))
+        @test status == 1
+        @test JSON3.read(result)["code"] == "InvalidAudioInput"
     end
 
     @testset "audio handlers" begin
@@ -253,7 +281,9 @@ empty!(Backend.STATE.volumes)
         source = "@article{smith2026, title={A title}, author={Smith}}"
         status, result = Backend.handle_request("parseBibTeX", JSON3.write([source]))
         @test status == 0
-        entries = JSON3.read(result)
+        parsed = JSON3.read(result)
+        @test parsed["count"] == 1
+        entries = parsed["entries"]
         @test length(entries) == 1
         @test entries[1]["key"] == "smith2026"
 
@@ -291,6 +321,13 @@ empty!(Backend.STATE.volumes)
         )
         @test status == 1
         @test JSON3.read(result)["code"] == "InvalidArgument"
+
+        status, result = Backend.handle_request(
+            "generatePdf",
+            JSON3.write(["backend-too-large.pdf", "Title", repeat("x", Backend.MAX_NOTE_BODY + 1)]),
+        )
+        @test status == 1
+        @test JSON3.read(result)["code"] == "PdfTooLarge"
     end
 
     @testset "PDF save" begin
@@ -466,6 +503,65 @@ empty!(Backend.STATE.volumes)
         # These should not be routed through Backend (handled in webview_app.jl)
         status, _ = Backend.handle_request("minimizeWindow", "")
         @test status == 1  # UnknownBinding since handled at event loop level
+    end
+
+    @testset "listDirectory" begin
+        mktempdir(homedir()) do directory
+            # Create test files
+            write(joinpath(directory, "file.txt"), "hello")
+            mkpath(joinpath(directory, "subdir"))
+            write(joinpath(directory, "subdir", "nested.md"), "# nested")
+
+            # Valid directory listing
+            status, result = Backend.handle_request(
+                "listDirectory",
+                JSON3.write([directory]),
+            )
+            @test status == 0
+            listing = JSON3.read(result)
+            @test listing["count"] >= 2
+            @test listing["path"] == realpath(directory)
+            names = [e["name"] for e in listing["entries"]]
+            @test "file.txt" in names
+            @test "subdir" in names
+            @test listing["truncated"] == false
+
+            # Extension filter
+            status, result = Backend.handle_request(
+                "listDirectory",
+                JSON3.write([directory, Dict("extensions" => [".txt"])]),
+            )
+            @test status == 0
+            filtered = JSON3.read(result)
+            filtered_names = [e["name"] for e in filtered["entries"]]
+            @test "file.txt" in filtered_names
+            @test !("subdir" in filtered_names)
+
+            # Missing directory
+            status, result = Backend.handle_request(
+                "listDirectory",
+                JSON3.write([joinpath(directory, "nonexistent")]),
+            )
+            @test status == 1
+            @test JSON3.read(result)["code"] == "PathNotFound"
+
+            # Path traversal blocked
+            status, result = Backend.handle_request(
+                "listDirectory",
+                JSON3.write(["/etc"]),
+            )
+            @test status == 1
+            @test JSON3.read(result)["code"] == "PathNotAllowed"
+        end
+    end
+
+    @testset "MAX_REQUEST_PAYLOAD_BYTES overflow" begin
+        # A payload exceeding MAX_REQUEST_PAYLOAD_BYTES (32 MB) should be rejected
+        huge = "x" ^ (Backend.MAX_REQUEST_PAYLOAD_BYTES + 1)
+        status, result = Backend.handle_request("getNotes", huge)
+        @test status == 1
+        err = JSON3.read(result)
+        @test err["code"] == "PayloadTooLarge"
     end
 
 end

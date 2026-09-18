@@ -6,8 +6,8 @@ end
 
 function _inspect_media(args)
     length(args) >= 1 || return _err("InvalidArgument", "Media path is required")
-    path, path_error = _validate_read_path(args[1], "Media")
-    path_error !== nothing && return _err(path_error...)
+    path, path_error = _validated_path(_validate_read_path, args[1], "Media")
+    path_error === nothing || return path_error
     try
         _ok(StaticMediaAdapter.inspect_media(path))
     catch error
@@ -28,8 +28,8 @@ end
 
 function _read_text(args)
     length(args) >= 1 || return _err("InvalidArgument", "Text path is required")
-    path, path_error = _validate_read_path(args[1], "Text")
-    path_error !== nothing && return _err(path_error...)
+    path, path_error = _validated_path(_validate_read_path, args[1], "Text")
+    path_error === nothing || return path_error
     try
         _ok(StaticMediaAdapter.read_text(path))
     catch error
@@ -41,8 +41,8 @@ function _write_text(args)
     length(args) >= 2 || return _err("InvalidArgument", "Text path and content are required")
     content = args[2]
     content isa AbstractString || return _err("InvalidArgument", "Text content must be text")
-    path, path_error = _validate_write_path(args[1], "Text output")
-    path_error !== nothing && return _err(path_error...)
+    path, path_error = _validated_path(_validate_write_path, args[1], "Text output")
+    path_error === nothing || return path_error
     try
         _ok(StaticMediaAdapter.write_text(path, content))
     catch error
@@ -52,10 +52,10 @@ end
 
 function _plan_conversion(args)
     length(args) >= 2 || return _err("InvalidArgument", "Input and output paths are required")
-    input, input_error = _validate_read_path(args[1], "Conversion input")
-    input_error !== nothing && return _err(input_error...)
-    output, output_error = _validate_write_path(args[2], "Conversion output")
-    output_error !== nothing && return _err(output_error...)
+    input, input_error = _validated_path(_validate_read_path, args[1], "Conversion input")
+    input_error === nothing || return input_error
+    output, output_error = _validated_path(_validate_write_path, args[2], "Conversion output")
+    output_error === nothing || return output_error
     try
         _ok(StaticMediaAdapter.plan_conversion(input, output))
     catch error
@@ -65,10 +65,10 @@ end
 
 function _convert_media(args)
     length(args) >= 2 || return _err("InvalidArgument", "Input and output paths are required")
-    input, input_error = _validate_read_path(args[1], "Conversion input")
-    input_error !== nothing && return _err(input_error...)
-    output, output_error = _validate_write_path(args[2], "Conversion output")
-    output_error !== nothing && return _err(output_error...)
+    input, input_error = _validated_path(_validate_read_path, args[1], "Conversion input")
+    input_error === nothing || return input_error
+    output, output_error = _validated_path(_validate_write_path, args[2], "Conversion output")
+    output_error === nothing || return output_error
     try
         plan = StaticMediaAdapter.plan_conversion(input, output)
         plan["requiresExternalTool"] && return _err(
@@ -89,7 +89,9 @@ function _media_conversion_response(job_id::AbstractString)
     catch
         return nothing
     end
-    paths = get(STATE.media_jobs, String(job_id), Dict{String,String}())
+    paths = lock(STATE.jobs_lock) do
+        get(STATE.media_jobs, String(job_id), Dict{String,String}())
+    end
     response = Dict{String,Any}(
         "schemaVersion" => StaticMediaAdapter.MEDIA_SCHEMA_VERSION,
         "provenance" => StaticMediaAdapter._provenance(
@@ -124,11 +126,12 @@ function _run_media_conversion(job_id::AbstractString, input::AbstractString, ou
 end
 
 function _start_media_conversion(args)
+    _cleanup_job_views!()
     length(args) >= 2 || return _err("InvalidArgument", "Input and output paths are required")
-    input, input_error = _validate_read_path(args[1], "Conversion input")
-    input_error !== nothing && return _err(input_error...)
-    output, output_error = _validate_write_path(args[2], "Conversion output")
-    output_error !== nothing && return _err(output_error...)
+    input, input_error = _validated_path(_validate_read_path, args[1], "Conversion input")
+    input_error === nothing || return input_error
+    output, output_error = _validated_path(_validate_write_path, args[2], "Conversion output")
+    output_error === nothing || return output_error
     plan = try
         StaticMediaAdapter.plan_conversion(input, output)
     catch error
@@ -140,7 +143,7 @@ function _start_media_conversion(args)
             "input" => input,
             "output" => output,
             "backend" => plan["backend"],
-        ))
+        ), correlation_id="convert-$(basename(input))")
     catch error
         return _err("JobLimitReached", sprint(showerror, error))
     end
@@ -150,6 +153,7 @@ function _start_media_conversion(args)
 end
 
 function _get_media_conversion_status(args)
+    _cleanup_job_views!()
     length(args) >= 1 || return _err("InvalidArgument", "Media job id is required")
     job_id = args[1]
     job_id isa AbstractString || return _err("InvalidArgument", "Media job id is invalid")
@@ -185,4 +189,61 @@ function _html_to_text(args)
     catch error
         _media_failure(error)
     end
+end
+
+# ── Directory listing ────────────────────────────────────────────────────────
+
+const MAX_DIRECTORY_ENTRIES = 2000
+
+function _list_directory(args)
+    length(args) >= 1 || return _err("InvalidArgument", "Directory path is required")
+    raw_path = args[1]
+    raw_path isa AbstractString && !isempty(strip(raw_path)) ||
+        return _err("InvalidArgument", "Directory path must be text")
+    dir_path = expanduser(strip(String(raw_path)))
+    isdir(dir_path) || return _err("PathNotFound", "Directory not found: $dir_path")
+    canonical = try
+        realpath(dir_path)
+    catch
+        return _err("PathUnavailable", "Could not resolve directory path")
+    end
+    WorkspacePolicy.contains_path(canonical, _configured_workspace_roots()) ||
+        return _err("PathNotAllowed", "Directory is outside the configured workspace roots")
+    extensions = nothing
+    if length(args) >= 2 && args[2] isa AbstractDict
+        raw_exts = get(args[2], "extensions", nothing)
+        if raw_exts isa AbstractVector
+            extensions = Set{String}(lowercase(String(e)) for e in raw_exts if e isa AbstractString)
+        end
+    end
+    max_entries = MAX_DIRECTORY_ENTRIES
+    entries = Any[]
+    try
+        for item in sort(readdir(canonical; join=true))
+            length(entries) >= max_entries && break
+            stat_result = try
+                stat(item)
+            catch
+                continue
+            end
+            is_dir = isdir(stat_result)
+            ext = is_dir ? "" : lowercase(Base.Filesystem.splitext(item)[2])
+            extensions !== nothing && !is_dir && !(ext in extensions) && continue
+            push!(entries, Dict{String,Any}(
+                "name" => basename(item),
+                "path" => item,
+                "isDir" => is_dir,
+                "size" => is_dir ? 0 : filesize(stat_result),
+                "modified" => string(Dates.unix2datetime(mtime(stat_result))),
+            ))
+        end
+    catch error
+        return _err("DirectoryReadFailed", "Could not read directory: $(sprint(showerror, error))")
+    end
+    _ok(Dict{String,Any}(
+        "path" => canonical,
+        "entries" => entries,
+        "count" => length(entries),
+        "truncated" => length(entries) >= max_entries,
+    ))
 end

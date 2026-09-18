@@ -20,51 +20,67 @@ julia --project=. -e 'using Test; include("test/runtests.jl")'
 If `Pkg.test()` cannot write Julia's global depot/log files, use a writable
 `JULIA_DEPOT_PATH` or the direct test invocation above for a local diagnostic.
 
+The abstraction edge suite also exercises binding-manifest normalization and
+drift detection, error-registry invariants, invalid single-file artifacts,
+deployment refusal for invalid builds, and diagnostics log rotation. These
+cases live in `test/edge_cases.jl` and are included by the main runner.
+
 ## Frontend tests
 
-Run the full frontend suite with:
+Run the production frontend suite with:
 
 ```sh
-npm --prefix frontend-preact test
+npm --prefix frontend verify
 ```
 
-The command runs the standalone `check-*.mjs` scripts, PDF/search benchmarks,
-and Vitest component tests. Component tests cover shell navigation, backend
-health states, error recovery, and plugin registration.
+The command runs Biome, the active frontend's Node tests, and a production
+bundle build. It covers adapter forwarding, timeout/error normalization, paper
+draft preservation, all direct-search URL generation, and rendered production
+bundle workflows for Paper Desk, Direct Search, and MIR completion.
 
 Useful focused commands include:
 
 ```sh
-npm --prefix frontend-preact run test:components
-npm --prefix frontend-preact run benchmark:notes
-npm --prefix frontend-preact run benchmark:pdf
-npm --prefix frontend-preact run benchmark:paper
-npm --prefix frontend-preact run map:check
+npm --prefix frontend test
+npm --prefix frontend run check
+npm --prefix frontend run build
 ```
 
-The check scripts cover backend error normalization, Q&A parsing, Markdown,
-calendar helpers, schemas, paper/citation logic, paper extensions (including
-Mermaid/MathJax fallbacks), MIR math, asset classification, map integrity,
-autosave ordering, fuzzy note search, and PDF generation/layouts.
-Component tests additionally cover shell navigation, backend health states,
-error recovery, and plugin registration.
+`frontend-preact/` remains archived. Its historical benchmarks and component
+tests are not release checks for the launched application.
 
-## Map data refresh
+## Native bridge and desktop smoke checks
 
-`map:refresh` downloads the pinned GeoBoundaries ADM2 GeoJSON and rewrites
-`src/plugins/indonesia-map-data.js`. To work offline, point
-`INDONESIA_MAP_SOURCE_FILE` at a compatible local source:
+The Julia suite includes a display-free native bridge burst test whenever the
+built bridge library is available. It verifies bounded admission, overload
+rejection, and FIFO draining. Rebuild it after changing `native/bridge.cc`:
 
 ```sh
-INDONESIA_MAP_SOURCE_FILE=/path/to/indonesia-adm2.geojson \
-  npm --prefix frontend-preact run map:refresh
-npm --prefix frontend-preact run map:check
+./native/build_webview.sh
+julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
-The validator expects 38 provinces, 514 administrative geometries, five
-excluded non-administrative features, the pinned source revision, closed rings,
-and coordinates within the Indonesia bounds used by the project.
+The desktop host uses GLib's blocking main-context iteration rather than an
+idle 10 ms sleep. Record the old polling baseline with:
+
+```sh
+/usr/bin/time -f '%U user %S system' julia --project=. scripts/measure_event_loop.jl
+```
+
+For a WebKitGTK smoke check, launch `./run.sh --dev`, open Research → Direct
+web search, enter a query, and open one provider from each group. Providers
+request a new window; if WebKitGTK blocks that popup, the app deliberately
+navigates the current WebView as the safe fallback.
+
+## CI and local Julia packages
+
+The CI workflow checks out `Aural.jl`, `LinuxCompanion.jl`, and
+`StaticMediaCompanion.jl beside this repository, matching the explicit
+`[sources]` paths in `Project.toml`. Local development and distributable source
+archives use the same side-by-side layout; binary packaging must either bundle
+those packages as a Julia depot or replace the path sources with registered,
+versioned releases before distribution.
 
 Do not edit generated files manually. After a successful
-frontend build, confirm that `frontend-preact/dist/index.html` exists before
+frontend build, confirm that `frontend/dist/index.html` exists before
 running the native launcher.

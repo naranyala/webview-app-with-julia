@@ -3,6 +3,8 @@
 function _mir_analyze(args)
     length(args) >= 2 || return _err("InvalidAudioInput", "Samples and sample rate are required")
     samples, sample_rate = args[1], args[2]
+    samples isa AbstractVector || return _err("InvalidAudioInput", "Samples must be an array")
+    sample_rate isa Number || return _err("InvalidAudioInput", "Sample rate must be a number")
     profile = length(args) >= 3 ? args[3] : "quick"
     profile isa AbstractString || return _err("InvalidAudioInput", "Analysis profile must be text")
     try
@@ -61,6 +63,7 @@ function _list_volumes(args)
 end
 
 function _start_asset_scan(args)
+    _cleanup_job_views!()
     length(args) >= 1 || return _err("InvalidArgument", "Volume id is required")
     volume_id = args[1]
     volume_id isa AbstractString && !isempty(strip(volume_id)) ||
@@ -85,7 +88,7 @@ function _start_asset_scan(args)
         Jobs.create_job!(STATE.jobs; kind="asset-scan", metadata=Dict(
             "volumeId" => String(volume_id),
             "path" => volume_path,
-        ))
+        ), correlation_id="scan-$(volume_id)")
     catch error
         return _err("JobLimitReached", sprint(showerror, error))
     end
@@ -121,7 +124,9 @@ function _scan_response(job_id::AbstractString)
     catch
         return nothing
     end
-    details = get(STATE.scan_jobs, String(job_id), Dict{String,Any}())
+    details = lock(STATE.jobs_lock) do
+        get(STATE.scan_jobs, String(job_id), Dict{String,Any}())
+    end
     response = deepcopy(details)
     response["id"] = String(job_id)
     response["state"] = snapshot["state"]
@@ -172,7 +177,9 @@ function _get_asset_scan_status(args)
     length(args) >= 1 || return _err("InvalidArgument", "Scan job id is required")
     job_id = args[1]
     job_id isa AbstractString || return _err("InvalidArgument", "Scan job id is invalid")
-    haskey(STATE.scan_jobs, job_id) || return _err("AssetJobNotFound", "Scan job $job_id not found")
+    lock(STATE.jobs_lock) do
+        haskey(STATE.scan_jobs, job_id) || return _err("AssetJobNotFound", "Scan job $job_id not found")
+    end
     _ok(_scan_response(job_id))
 end
 
@@ -180,7 +187,9 @@ function _cancel_asset_scan(args)
     length(args) >= 1 || return _err("InvalidArgument", "Scan job id is required")
     job_id = args[1]
     job_id isa AbstractString || return _err("InvalidArgument", "Scan job id is invalid")
-    haskey(STATE.scan_jobs, job_id) || return _err("AssetJobNotFound", "Scan job $job_id not found")
+    lock(STATE.jobs_lock) do
+        haskey(STATE.scan_jobs, job_id) || return _err("AssetJobNotFound", "Scan job $job_id not found")
+    end
     Jobs.cancel_job!(STATE.jobs, job_id)
     _ok(_scan_response(job_id))
 end
@@ -189,8 +198,8 @@ end
 
 function _audio_metadata_internal(args)
     length(args) >= 1 || return _err("InvalidArgument", "Audio path is required")
-    path, path_error = _validate_read_path(args[1], "Audio")
-    path_error !== nothing && return _err(path_error...)
+    path, path_error = _validated_path(_validate_read_path, args[1], "Audio")
+    path_error === nothing || return path_error
     try
         metadata = AudioAnalysisAdapter.read_metadata(path)
         _ok(metadata)
@@ -205,8 +214,8 @@ end
 
 function _audio_analysis_internal(args)
     length(args) >= 1 || return _err("InvalidArgument", "Audio path is required")
-    path, path_error = _validate_read_path(args[1], "Audio")
-    path_error !== nothing && return _err(path_error...)
+    path, path_error = _validated_path(_validate_read_path, args[1], "Audio")
+    path_error === nothing || return path_error
     try
         profile = length(args) >= 2 ? args[2] : "quick"
         profile isa AbstractString || return _err("InvalidArgument", "Analysis profile must be text")
@@ -232,7 +241,9 @@ function _audio_job_response(job_id::AbstractString)
     catch
         return nothing
     end
-    path = get(STATE.audio_jobs, String(job_id), "")
+    path = lock(STATE.jobs_lock) do
+        get(STATE.audio_jobs, String(job_id), "")
+    end
     response = Dict{String,Any}(
         "id" => String(job_id),
         "path" => path,
@@ -260,15 +271,16 @@ function _run_audio_analysis(job_id::AbstractString, path::AbstractString, profi
 end
 
 function _start_audio_analysis(args)
+    _cleanup_job_views!()
     length(args) >= 1 || return _err("InvalidArgument", "Audio path is required")
-    path, path_error = _validate_read_path(args[1], "Audio")
-    path_error !== nothing && return _err(path_error...)
+    path, path_error = _validated_path(_validate_read_path, args[1], "Audio")
+    path_error === nothing || return path_error
     profile = length(args) >= 2 ? args[2] : "quick"
     profile isa AbstractString || return _err("InvalidArgument", "Analysis profile must be text")
     profile in ("quick", "spectral") || return _err("InvalidArgument", "Analysis profile must be quick or spectral")
     Jobs.cleanup!(STATE.jobs)
     job_id = try
-        Jobs.create_job!(STATE.jobs; kind="audio-analysis", metadata=Dict("path" => path, "profile" => profile))
+        Jobs.create_job!(STATE.jobs; kind="audio-analysis", metadata=Dict("path" => path, "profile" => profile), correlation_id="audio-$(basename(path))")
     catch error
         return _err("JobLimitReached", sprint(showerror, error))
     end
@@ -278,6 +290,7 @@ function _start_audio_analysis(args)
 end
 
 function _get_audio_analysis_status(args)
+    _cleanup_job_views!()
     length(args) >= 1 || return _err("InvalidArgument", "Audio job id is required")
     job_id = args[1]
     job_id isa AbstractString || return _err("InvalidArgument", "Audio job id is invalid")
@@ -298,8 +311,8 @@ end
 
 function _inspect_blend(args)
     length(args) >= 1 || return _err("InvalidArgument", "Blend path is required")
-    path, path_error = _validate_read_path(args[1], "Blender")
-    path_error !== nothing && return _err(path_error...)
+    path, path_error = _validated_path(_validate_read_path, args[1], "Blender")
+    path_error === nothing || return path_error
     try
         header = BlendReader.read_header(path)
         _ok(Dict(

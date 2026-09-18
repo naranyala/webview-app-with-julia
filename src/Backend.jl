@@ -13,7 +13,9 @@ Every handler returns `(status_code, json_string)`:
   - status 1 = error (JSON contains `code` and `message`)
 
 State is module-level (`STATE`) and protected by Julia's cooperative threading
-(no locks needed for the current `@async`/`Threads.@spawn` model).
+model. The `persist_lock`/`persist_io_lock` protect persistence state, and
+`jobs_lock` protects `scan_jobs`, `audio_jobs`, and `media_jobs` mutations
+from `Threads.@spawn` tasks.
 """
 module Backend
 
@@ -30,8 +32,11 @@ using ..PDFGen
 using ..Persistence
 using ..StaticMediaAdapter
 using ..Diagnostics
+using ..ErrorCodes
 using ..PaperProjects
+using ..RendererCapability
 using ..WorkspacePolicy
+using ..BoundedCache
 
 export handle_request, flush_pending!, register_handler!, unregister_handler!, handler_names
 
@@ -60,6 +65,8 @@ mutable struct AppState
     persist_timers::Dict{String,Timer}
     persist_lock::ReentrantLock
     persist_io_lock::ReentrantLock
+    jobs_lock::ReentrantLock
+    media_cache::BoundedCache.CacheStore
 end
 
 # Backend state is process-local and is the source of truth during a session.
@@ -78,6 +85,8 @@ const STATE = AppState(
     Dict{String,Timer}(),
     ReentrantLock(),
     ReentrantLock(),
+    ReentrantLock(),
+    BoundedCache.CacheStore(max_entries=256, max_entry_bytes=1024*1024, max_total_bytes=64*1024*1024),
 )
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -240,23 +249,35 @@ function _allowed_read_roots()
     roots
 end
 
-function _validate_read_path(value, label::AbstractString)
-    # Read paths are canonicalized before authorization. This blocks null-byte
-    # tricks, missing files, and symlink escapes from the allowed roots.
-    value isa AbstractString && !isempty(strip(value)) ||
-        return nothing, ("InvalidArgument", "$label path is required")
-    occursin('\0', value) && return nothing, ("InvalidArgument", "$label path is invalid")
-    expanded = expanduser(String(value))
-    isfile(expanded) || return nothing, ("PathMissing", "$label file was not found")
-    canonical = try
-        realpath(expanded)
-    catch error
-        return nothing, ("PathUnavailable", "Could not resolve $label path: $(sprint(showerror, error))")
+function _policy_error(error::WorkspacePolicy.PolicyError; missing_code="PathMissing")
+    WorkspacePolicy.error_code(error; missing_code), error.detail
+end
+
+"""Drop compatibility job views after the shared manager evicts a job."""
+function _cleanup_job_views!()
+    retained = Set(snapshot["id"] for snapshot in Jobs.snapshots(STATE.jobs))
+    lock(STATE.jobs_lock) do
+        for jobs in (STATE.scan_jobs, STATE.audio_jobs, STATE.media_jobs)
+            for id in collect(keys(jobs))
+                id in retained || delete!(jobs, id)
+            end
+        end
     end
-    separator = string(Base.Filesystem.path_separator)
-    allowed = any(root -> canonical == root || startswith(canonical, root * separator), _allowed_read_roots())
-    allowed || return nothing, ("PathNotAllowed", "$label path is outside the allowed workspace roots")
-    canonical, nothing
+    nothing
+end
+
+function _validated_path(validator, value, args...; kwargs...)
+    path, error = validator(value, args...; kwargs...)
+    path, error === nothing ? nothing : _err(error...)
+end
+
+function _validate_read_path(value, label::AbstractString)
+    try
+        WorkspacePolicy.authorize_read_file(value, _allowed_read_roots(); label=label), nothing
+    catch error
+        error isa WorkspacePolicy.PolicyError && return nothing, _policy_error(error)
+        nothing, ("PathUnavailable", "Could not resolve $label path: $(sprint(showerror, error))")
+    end
 end
 
 function _validate_write_path(value, label::AbstractString)
@@ -266,16 +287,9 @@ function _validate_write_path(value, label::AbstractString)
     documents = joinpath(homedir(), "Documents")
     try
         isdir(documents) || mkpath(documents)
-        root = realpath(documents)
-        target = abspath(expanduser(String(value)))
-        parent = realpath(dirname(target))
-        canonical = ispath(target) ? realpath(target) : joinpath(parent, basename(target))
-        separator = string(Base.Filesystem.path_separator)
-        allowed = canonical != root && startswith(canonical, root * separator)
-        allowed || return nothing, ("PathNotAllowed", "$label path is outside ~/Documents")
-        isdir(canonical) && return nothing, ("InvalidArgument", "$label path must be a file")
-        target, nothing
+        WorkspacePolicy.authorize_write_file(value, [realpath(documents)]; label=label), nothing
     catch error
+        error isa WorkspacePolicy.PolicyError && return nothing, _policy_error(error)
         nothing, ("PathUnavailable", "Could not resolve $label path: $(sprint(showerror, error))")
     end
 end

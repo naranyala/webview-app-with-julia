@@ -15,6 +15,10 @@ native/lib/
 # ─── Node / npm ──────────────────────────────────────────────────────────────
 frontend-preact/node_modules/
 frontend-preact/dist/
+frontend/node_modules/
+frontend/dist/
+
+native/vendor/
 
 # ─── OS ──────────────────────────────────────────────────────────────────────
 .DS_Store

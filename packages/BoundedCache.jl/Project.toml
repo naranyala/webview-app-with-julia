@@ -1,0 +1,16 @@
+name = "BoundedCache"
+uuid = "4182bf21-b6e4-41c9-8d65-3d93f0031083"
+version = "0.1.0"
+authors = ["Your Name <you@example.com>"]
+description = "Bounded in-memory LRU cache with per-entry and total byte limits."
+
+[deps]
+
+[compat]
+julia = "1.6"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

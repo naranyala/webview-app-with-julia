@@ -4,6 +4,20 @@ using Aural
 using WebViewApp.ManualWebview
 
 @testset "internal modules" begin
+    @testset "internal library seams" begin
+        ids = InternalLibraries.candidate_ids()
+        @test length(ids) >= 7
+        @test "atomic-stores" in ids
+        @test "research-document-model" in ids
+        paper = InternalLibraries.candidate("research-document-model")
+        @test paper["module"] == "PaperProjects"
+        @test "validate_project" in paper["api"]
+        @test InternalLibraries.candidate("missing") === nothing
+        catalog = InternalLibraries.catalog()
+        catalog[1]["role"] = "mutated"
+        @test InternalLibraries.catalog()[1]["role"] != "mutated"
+    end
+
     @testset "AudioAnalysisAdapter" begin
         features = AudioAnalysisAdapter.analyze_samples([0.0, 1.0, 0.0, -1.0], 8000)
         @test features["sample_count"] == 4

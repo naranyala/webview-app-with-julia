@@ -1,0 +1,47 @@
+name: Verify
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm --prefix frontend ci
+      - run: npm --prefix frontend verify
+
+  julia:
+    runs-on: ubuntu-latest
+    steps:
+      # The Julia project intentionally uses local sibling packages. Checking
+      # them out side-by-side preserves the paths recorded in Project.toml.
+      - uses: actions/checkout@v4
+        with:
+          path: webview-app-with-julia
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/Aural.jl
+          path: Aural.jl
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/LinuxCompanion.jl
+          path: LinuxCompanion.jl
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/StaticMediaCompanion.jl
+          path: StaticMediaCompanion.jl
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.11'
+      - name: Instantiate and test with an isolated writable depot
+        working-directory: webview-app-with-julia
+        env:
+          JULIA_DEPOT_PATH: ${{ runner.temp }}/julia-depot
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.test()'

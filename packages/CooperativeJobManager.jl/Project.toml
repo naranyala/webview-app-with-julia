@@ -1,0 +1,16 @@
+name = "CooperativeJobManager"
+uuid = "27bdc198-fdc2-45e9-bca2-a25e3bbd9492"
+version = "0.1.0"
+authors = ["Your Name <you@example.com>"]
+description = "Thread-safe cooperative job manager with cancellation, progress tracking, and bounded retention."
+
+[deps]
+
+[compat]
+julia = "1.6"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

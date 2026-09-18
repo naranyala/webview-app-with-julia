@@ -6,10 +6,17 @@
 using WebViewApp
 using WebViewApp.ManualWebview
 using WebViewApp.Backend
+using WebViewApp.BindingManifest
 using JSON3
 
+function webview_debug_enabled()
+    value = lowercase(get(ENV, "JULIA_WEBVIEW_DEVTOOLS", get(ENV, "JULIA_WEBVIEW_DEBUG", "0")))
+    return value in ("1", "true", "yes", "on")
+end
+
 function main()
-    debug = get(ENV, "JULIA_WEBVIEW_DEBUG", "0") == "1"
+    debug = webview_debug_enabled()
+    debug && @info "WebView developer tools enabled"
     webview = ManualWebview.create(debug=debug)
     queue = ManualWebview.create_queue()
     ManualWebview.set_title!(webview, "WebView App")
@@ -20,25 +27,7 @@ function main()
     # Window management bindings (minimize/maximize/restore/close) are handled
     # inline here because they need the webview handle, which Backend.jl
     # does not have access to.
-    bindings = [
-        "increment", "reset", "getSystemInfo", "getTimestamp", "getStatus",
-        "getDiagnostics", "clearDiagnostics",
-        "getNotes", "createNote", "updateNote", "deleteNote", "savePdf",
-        "mirAnalyze",
-        "listVolumes", "startAssetScan", "getAssetScanStatus", "cancelAssetScan",
-        "getAudioMetadata", "analyzeAudio", "startAudioAnalysis",
-        "getAudioAnalysisStatus", "cancelAudioAnalysis",
-        "parseBibTeX", "inspectBlend", "generatePdf",
-        # Optional StaticMediaCompanion capabilities. These are registered
-        # independently from the 27 core bindings so the shell can ship the
-        # media backend before a dedicated media-inspector plugin is enabled.
-        "inspectMedia", "markdownToHtml", "readText", "writeText",
-        "planConversion", "convertMedia", "startMediaConversion",
-        "getMediaConversionStatus", "cancelMediaConversion",
-        "getMediaCapabilities", "htmlToText",
-        "minimizeWindow", "maximizeWindow", "restoreWindow", "closeWindow",
-    ]
-    append!(bindings, setdiff(Backend.handler_names(), bindings))
+    bindings = BindingManifest.required_bindings(Backend.handler_names())
 
     try
         for name in bindings
@@ -47,14 +36,15 @@ function main()
         ManualWebview.html!(webview, frontend_html())
 
         # ── Main event loop ──────────────────────────────────────────────
-        # pump!() processes pending GTK events (non-blocking GLib iteration).
+        # A blocking GLib iteration waits efficiently for the next UI event.
+        # Binding callbacks run in that iteration and enqueue requests, which
+        # are then drained as one burst before waiting again. This keeps GTK
+        # thread-affinity intact and replaces the former 10ms idle poll.
         # next!() pops a request from the bridge queue (or returns nothing).
-        # All pending requests are drained before sleeping. The 10ms sleep
-        # balances latency (~10ms worst-case) against CPU usage (~100 Hz poll).
-        # A future improvement will replace this with epoll-based wakeup.
+        # All pending requests are drained before the next blocking iteration.
         closed = false
         while !closed
-            ManualWebview.pump!()
+            ManualWebview.pump!(block=true)
             request = ManualWebview.next!(queue)
             while request !== nothing
                 try
@@ -92,7 +82,7 @@ function main()
                 end
                 request = ManualWebview.next!(queue)
             end
-            sleep(0.01)
+            closed = !ManualWebview.is_open(webview)
         end
     finally
         try

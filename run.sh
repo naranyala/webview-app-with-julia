@@ -7,13 +7,14 @@ set -euo pipefail
 # Usage:
 #   ./run.sh              Build (if needed) and launch
 #   ./run.sh --build      Force full rebuild then launch
-#   ./run.sh --dev        Launch with WebView debug tools enabled
+#   ./run.sh --dev        Launch with WebView developer tools enabled
+#   ./run.sh --devtools   Alias for --dev
 #   ./run.sh --build-dev  Force rebuild + dev mode
 #   ./run.sh --help       Show this help
 # ──────────────────────────────────────────────────────────────────────────────
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FRONTEND_DIR="$ROOT_DIR/frontend-preact"
+FRONTEND_DIR="$ROOT_DIR/frontend"
 NATIVE_DIR="$ROOT_DIR/native"
 FRONTEND_DIST="$FRONTEND_DIR/dist/index.html"
 LIBWEBVIEW="$NATIVE_DIR/lib/libwebview.so"
@@ -42,7 +43,7 @@ fail()  { printf "${RED}✗${RESET} %s\n" "$*" >&2; exit 1; }
 for arg in "$@"; do
     case "$arg" in
         --build)    FORCE_BUILD=1 ;;
-        --dev)      DEV_MODE=1 ;;
+        --dev|--devtools) DEV_MODE=1 ;;
         --build-dev) FORCE_BUILD=1; DEV_MODE=1 ;;
         --help|-h)
             sed -n '/^# Usage:/,/^# ─/p' "$0" | sed 's/^# \?//'
@@ -90,9 +91,10 @@ needs_frontend_build() {
     newest_input=$(find \
         "$FRONTEND_DIR/src" \
         "$FRONTEND_DIR/public" \
-        "$FRONTEND_DIR/build-plugins" \
-        "$FRONTEND_DIR/build.cjs" \
-        -type f \( -name '*.js' -o -name '*.jsx' -o -name '*.css' -o -name '*.mjs' -o -name '*.cjs' -o -name '*.html' \) \
+        "$FRONTEND_DIR/scripts" \
+        "$FRONTEND_DIR/rsbuild.config.js" \
+        "$FRONTEND_DIR/package.json" \
+        -type f \
         -print0 | xargs -0 stat -c '%Y' 2>/dev/null | sort -rn | head -1)
     local dist_time
     dist_time=$(stat -c '%Y' "$FRONTEND_DIST" 2>/dev/null || echo 0)
@@ -107,7 +109,7 @@ if needs_frontend_build; then
     info "Building frontend..."
     if [[ ! -d "$FRONTEND_DIR/node_modules" ]]; then
         info "Installing npm dependencies..."
-        npm --prefix "$FRONTEND_DIR" install --no-fund --no-audit 2>&1 | tail -1
+        npm --prefix "$FRONTEND_DIR" ci --no-fund --no-audit 2>&1 | tail -1
     fi
     npm --prefix "$FRONTEND_DIR" run build 2>&1 | tail -3
     ok "Frontend built → $FRONTEND_DIST"
@@ -140,7 +142,7 @@ ok "Julia project ready"
 # ─── Launch ───────────────────────────────────────────────────────────────────
 
 if [[ "$DEV_MODE" -eq 1 ]]; then
-    export JULIA_WEBVIEW_DEBUG=1
+    export JULIA_WEBVIEW_DEVTOOLS=1
     info "Launching GUI (debug mode)..."
 else
     info "Launching GUI..."

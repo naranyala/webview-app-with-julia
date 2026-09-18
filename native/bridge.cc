@@ -27,6 +27,7 @@
 #include <gtk/gtk.h>
 
 #include <deque>
+#include <cstring>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -46,9 +47,17 @@ struct bridge_queue {
   std::vector<void *> contexts;         // owned binding_context pointers (for cleanup)
 };
 
+// Keep a slow Julia handler or a malicious page from retaining unbounded input
+// in the native process.  Payloads are JSON argument arrays and the backend has
+// its own smaller per-operation limits; this is the bridge-wide last line of
+// defence.
+constexpr std::size_t kMaxPendingRequests = 128;
+constexpr std::size_t kMaxPayloadBytes = 1024 * 1024;
+
 // Associates a binding name with its owning queue. One per bound name.
 struct binding_context {
   bridge_queue *queue;
+  webview_t webview;
   std::string name;
 };
 
@@ -58,9 +67,30 @@ extern "C" {
 // Acquires the queue mutex and appends the request; no Julia code is called.
 static void binding_callback(const char *id, const char *payload, void *arg) {
   auto *context = static_cast<binding_context *>(arg);
-  std::lock_guard<std::mutex> lock(context->queue->mutex);
-  context->queue->requests.push_back(
-      {context->name, id ? id : "", payload ? payload : ""});
+  const char *safe_id = id ? id : "";
+  const char *safe_payload = payload ? payload : "";
+  int enqueue_result = 0;
+  {
+    std::lock_guard<std::mutex> lock(context->queue->mutex);
+    if (context->queue->requests.size() >= kMaxPendingRequests) {
+      enqueue_result = -1;
+    } else if (std::strlen(safe_payload) > kMaxPayloadBytes) {
+      enqueue_result = -2;
+    } else {
+      context->queue->requests.push_back(
+          {context->name, safe_id, safe_payload});
+    }
+  }
+
+  // The callback is already on WebView's UI thread, so return overload errors
+  // immediately instead of making a browser Promise wait for a queue slot.
+  if (enqueue_result == -1) {
+    webview_return(context->webview, safe_id, 1,
+                   "{\"code\":\"BridgeOverloaded\",\"message\":\"The desktop request queue is full. Try again shortly.\"}");
+  } else if (enqueue_result == -2) {
+    webview_return(context->webview, safe_id, 1,
+                   "{\"code\":\"PayloadTooLarge\",\"message\":\"The request payload exceeds the bridge limit.\"}");
+  }
 }
 
 // ── Queue lifecycle ────────────────────────────────────────────────────────
@@ -93,7 +123,7 @@ int julia_webview_bind_queue(webview_t webview, const char *name,
   }
 
   auto *queue = static_cast<bridge_queue *>(queue_pointer);
-  auto *context = new binding_context{queue, name};
+  auto *context = new binding_context{queue, webview, name};
   auto result = webview_bind(webview, name, binding_callback, context);
   if (result != WEBVIEW_ERROR_OK) {
     delete context;
@@ -162,6 +192,39 @@ void *julia_webview_queue_next(void *queue_pointer) {
   auto *request = new bridge_request{std::move(queue->requests.front())};
   queue->requests.pop_front();
   return request;
+}
+
+// Testable queue primitive used by the binding callback.  It does not call
+// into WebView, which lets the Julia integration test exercise bounded burst
+// handling without a display server.
+// Returns 0 on success, -1 when full, -2 for an oversized payload, and -3 for
+// invalid pointers.
+int julia_webview_queue_try_push(void *queue_pointer, const char *name,
+                                 const char *id, const char *payload) {
+  if (!queue_pointer || !name || !id || !payload) {
+    return -3;
+  }
+  if (std::strlen(payload) > kMaxPayloadBytes) {
+    return -2;
+  }
+  auto *queue = static_cast<bridge_queue *>(queue_pointer);
+  std::lock_guard<std::mutex> lock(queue->mutex);
+  if (queue->requests.size() >= kMaxPendingRequests) {
+    return -1;
+  }
+  queue->requests.push_back({name, id, payload});
+  return 0;
+}
+
+std::size_t julia_webview_queue_capacity() { return kMaxPendingRequests; }
+
+std::size_t julia_webview_queue_size(void *queue_pointer) {
+  if (!queue_pointer) {
+    return 0;
+  }
+  auto *queue = static_cast<bridge_queue *>(queue_pointer);
+  std::lock_guard<std::mutex> lock(queue->mutex);
+  return queue->requests.size();
 }
 
 // ── Request accessors ─────────────────────────────────────────────────────

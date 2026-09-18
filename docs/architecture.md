@@ -3,13 +3,13 @@
 ## Runtime flow
 
 ```text
-frontend-preact/src/main.jsx
+frontend/src/index.js
         |
         v
-Preact App shell + registered plugins
+Rsbuild application
         |
         v
-frontend-preact/dist/index.html  <-- generated from public/index.html + assets
+frontend/dist/index.html  <-- generated and inlined for WebView html!
         |
         v
 bin/webview_app.jl
@@ -24,8 +24,10 @@ bin/webview_app.jl
 The launcher creates a WebView window, sets its title and size, injects the
 built HTML, and pumps the GLib main context. Native callbacks do not call into
 Julia directly. Instead, `native/bridge.cc` copies each WebView request into a
-mutex-protected queue; Julia polls that queue and returns a response by request
-ID.
+bounded, mutex-protected queue; Julia drains that queue and returns a response
+by request ID. GTK's blocking GLib iteration provides the wake-up path, so the
+host is idle without a fixed polling sleep. Queue overflow and oversized bridge
+payloads are rejected immediately with structured errors.
 
 ## Repository layers
 
@@ -38,52 +40,39 @@ ID.
 | Desktop entry point | `bin/webview_app.jl` | Creates the window, registers native bindings, services the request queue, and shuts down cleanly. |
 | C++ bridge | `native/bridge.cc` | Adapts WebView binding callbacks to a Julia-pollable request queue. |
 | Native build | `native/build_webview.sh` | Fetches pinned WebView v0.12.0 and compiles the two shared libraries. |
-| Frontend shell | `frontend-preact/src/App.jsx` | Home launcher, navigation rail, tool panels, command palette, autosave flush, and window controls. |
-| Plugin registry | `frontend-preact/src/plugins/index.js` | Declares the tools reachable from the shell. |
-| Paper extension registry | `frontend-preact/src/plugins/paper-extensions.js` | Extensible academic blocks with Mermaid/MathJax-safe fallbacks and optional host enhancement. |
-| Frontend adapter | `frontend-preact/src/backend.js` + `backend-mock.js` | Validates arguments, calls `window.*`, normalizes errors, adds timeouts, and keeps browser mocks separate. |
-| StyleX catalog | `frontend-preact/src/stylex-*.js` | Groups shared tokens and styles by foundation, content, media, and tasks behind the `stylex-styles.js` facade. |
-| Note PDF export | `frontend-preact/src/plugins/note-pdf.js` + `note-pdf-jspdf.js` | Builds shared note blocks and delegates jsPDF rendering to its own renderer. |
-| Frontend build | `frontend-preact/build.cjs` | Bundles Preact, extracts StyleX, emits assets, and creates the single-file HTML. |
+| Production frontend | `frontend/src/` | Rsbuild application loaded by the native WebView. |
+| Frontend shell | `frontend/src/App.tsrx` | Declares the reachable writing and music tools. |
+| Frontend adapter | `frontend/src/backend.js` | Calls native `window.*` bindings and rejects unavailable browser calls. |
+| Tool views | `frontend/src/WritingWorkspace.tsrx` + `MusicWorkspace.tsrx` | Renders note, paper, references, and MIR workflows. |
+| Build planning | `src/Build.jl` + `bin/build.jl` | Discovers inputs, checks generated-output freshness, and publishes canonical build commands without executing subprocesses. |
+| User-local deployment | `src/Deploy.jl` + `bin/install.jl` | Plans and stages runtime inputs into a user-owned prefix, creates a launcher, and optionally registers a desktop entry. |
+| RPC contract | `src/BindingManifest.jl` | Versioned frontend/backend/window binding names and drift reports used by the desktop launcher. |
+| Frontend build | `frontend/rsbuild.config.js` + `frontend/scripts/single-file-html-plugin.js` | Builds the Rsbuild app and emits an inline HTML artifact for `html!`. |
 
 ## Frontend build artifacts
 
-`frontend-preact/public/index.html` is the HTML template. The build writes
-bundled CSS and JavaScript to `frontend-preact/public/assets/`, then the
-`frontend-preact/build-plugins/single-file-html.cjs` esbuild plugin inlines local
-CSS and JavaScript into `frontend-preact/dist/index.html`.
+Rsbuild writes its initial output to `frontend/dist/`. The
+The `single-file-html` Rsbuild plugin inlines local CSS and JavaScript into
+`frontend/dist/index.html`, then defers embedded runtime execution until the DOM
+is ready. This lets `webview_set_html` load the application without a document
+URL or static file server.
 
 The following outputs are ignored by Git:
 
-- `frontend-preact/node_modules/`
-- `frontend-preact/dist/`
+- `frontend/node_modules/`
+- `frontend/dist/`
 - `native/vendor/`
 - `native/build/`
 - `native/lib/`
 - Julia's `Manifest.toml`
 
-The checked-in `public/assets/` files are generated frontend assets. Treat the
-source files under `frontend-preact/src/` and the build command as the source
-of truth when changing the UI.
+Treat `frontend/src/` and `npm --prefix frontend run build` as the source of
+truth for the production UI.
 
-## Navigation and plugin lifecycle
+## Navigation and native bindings
 
-`App.jsx` reads `frontendPlugins` and splits the entries into the primary rail
-and the Tools submenu. Selecting a tool:
-
-1. flushes registered autosaves;
-2. records the tool as opened and makes it active;
-3. updates the document title and scroll position; and
-4. renders the plugin component with any mode-specific props.
-
-The shell passes `mode`, `selectedProvince`, and related callbacks to the
-Indonesia Map and MIR Papers plugins. `Ctrl-K`/`Cmd-K` opens the command palette.
-
-## Native versus mock mode
-
-The frontend reports native mode only when every name in `CORE_BINDINGS` is a
-function on `window`. The Julia launcher registers that list through the queue
-bridge. Missing bindings fall back to mocks; setting
-`window.__PREACT_MOCK_BRIDGE__ = false` makes them reject as unavailable instead.
-
-A native WebView window can therefore display a frontend operating in mock mode.
+`App.tsrx` keeps the active workspace and tool in local state and only exposes
+tools with a corresponding view. Tool views call `frontend/src/backend.js`,
+which forwards requests to the queue bindings registered by the Julia launcher.
+When running in a regular browser, calls reject as unavailable rather than
+simulating backend data.

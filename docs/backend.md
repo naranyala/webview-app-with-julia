@@ -33,27 +33,22 @@ in [Getting started](getting-started.md).
 Errors in the request loop are returned with status `1` and a JSON-encoded
 error message. Each request is closed in a `finally` block.
 
-The legacy `web/index.html` exercises these three bindings directly. The Preact
-frontend loads from `frontend-preact/dist/index.html`; the legacy Fibonacci page
-is not part of the application UI.
+The legacy `web/index.html` exercises these three bindings directly. The
+production frontend loads from `frontend/dist/index.html`; the legacy Fibonacci
+page is not part of the application UI.
 
 ## Frontend backend adapter
 
-`frontend-preact/src/backend.js` exposes a Promise-based adapter. It
-validates arguments, calls a native `window[name]` function when present, and
-wraps the result in a five-second timeout by default. Use
-`setDefaultTimeout(ms)` for tests or a different host environment.
+`frontend/src/backend.js` exposes Promise-based writing and music adapters. It
+calls a native `window[name]` function when present and rejects unavailable
+calls in a regular browser. It deliberately does not provide mock data.
 
 The adapter exposes the following groups:
 
 | Group | Functions |
 | --- | --- |
-| Diagnostics | `increment`, `reset`, `getSystemInfo`, `getTimestamp`, `getStatus` |
-| Notes and exports | `getNotes`, `createNote`, `updateNote`, `deleteNote`, `savePdf` |
-| MIR | `mirAnalyze` |
-| Studio assets | `listVolumes`, `startAssetScan`, `getAssetScanStatus`, `cancelAssetScan`, `getAudioMetadata`, `analyzeAudio` |
-| Audio jobs | `startAudioAnalysis`, `getAudioAnalysisStatus`, `cancelAudioAnalysis` |
-| Window actions | `minimizeWindow`, `maximizeWindow`, `restoreWindow`, `closeWindow` |
+| Writing | `getNotes`, `createNote`, `updateNote`, `deleteNote`, `generatePdf`, paper-project, and BibTeX calls |
+| Music | `getAudioMetadata`, `startAudioAnalysis`, `getAudioAnalysisStatus`, `cancelAudioAnalysis` |
 
 In browser/mock mode, note data is kept in local storage when it is available,
 with an in-memory fallback. MIR analysis uses the JavaScript mirror; asset and
@@ -67,9 +62,8 @@ audio calls use deterministic mock responses or mock errors.
 2. a bare error name such as `NoteNotFound`; or
 3. a local adapter error such as `Timeout`, `Unavailable`, or `InvalidArgument`.
 
-The UI should switch on `code` and display `message`. `backendError()` returns a
-short display string; `backendErrorWithCode()` preserves the error code for
-diagnostics.
+The UI should display the returned error message and preserve the error code
+when a richer error envelope is available.
 
 ## Jobs and persistence
 
@@ -98,10 +92,9 @@ Anything else returns `InvalidArgument`. The rich frontend paper pipeline
 two-column print CSS) covers full papers with figures, citations, and
 references; `generatePdf` is the lightweight native fallback.
 
-`frontend-preact/src/bindings.d.ts`, `backend.js`, and `check-bindings.cjs` are
-kept aligned with `bin/webview_app.jl`. Run
-`npm --prefix frontend-preact run check:bindings` to verify all registered
-names. Browser mode remains available through the adapter's mocks.
+Keep the production adapter and the handlers in `src/backend/router.jl` aligned;
+the frontend test suite verifies adapter forwarding and unavailable-call
+behavior.
 
 ### Plugin extension points
 

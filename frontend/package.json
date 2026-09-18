@@ -1,0 +1,27 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm run check && rsbuild build",
+    "check": "biome check .",
+    "check:write": "biome check --write .",
+    "dev": "rsbuild",
+    "format": "biome format --write",
+    "preview": "rsbuild preview",
+    "test": "npm run build && node --test --test-concurrency=1",
+    "verify": "npm test"
+  },
+  "dependencies": {
+    "octane": "^0.2.10"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.11",
+    "@octanejs/rsbuild-plugin": "^0.1.49",
+    "@rsbuild/core": "^2.2.6",
+    "@rsbuild/plugin-tailwindcss": "^2.0.3",
+    "jsdom": "^27.4.0",
+    "tailwindcss": "^4.3.3"
+  }
+}

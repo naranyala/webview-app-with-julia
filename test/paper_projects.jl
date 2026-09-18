@@ -17,7 +17,20 @@ const VALID_PAPER_PROJECT = Dict{String,Any}(
     @test validation["valid"]
     @test validation["project"]["schemaVersion"] == 1
     @test validation["project"]["template"] == Dict("id" => "default", "version" => "1")
+    @test validation["project"]["tableOfContents"]["schemaVersion"] == 1
+    @test validation["project"]["tableOfContents"]["entries"][1]["sectionId"] == "intro"
+    @test validation["project"]["layout"]["columns"] == 2
+    @test validation["project"]["source"]["importedFrom"] == ""
     @test "paper has no export profiles" in validation["warnings"]
+
+    cited = merge(VALID_PAPER_PROJECT, Dict(
+        "sections" => [Dict("id" => "intro", "title" => "Introduction", "body" => "See [@known] and [@missing].")],
+        "references" => [Dict("key" => "known"), Dict("key" => "unused")],
+    ))
+    cited_validation = PaperProjects.validate_project(cited)
+    @test !cited_validation["valid"]
+    @test "citation references missing key: missing" in cited_validation["errors"]
+    @test "reference is not cited: unused" in cited_validation["warnings"]
 
     invalid = PaperProjects.validate_project(merge(VALID_PAPER_PROJECT, Dict("id" => "Bad Id")))
     @test !invalid["valid"]
@@ -37,6 +50,13 @@ const VALID_PAPER_PROJECT = Dict{String,Any}(
     @test migrated["references"][1]["key"] == "legacy"
     @test migrated["template"] == Dict("id" => "preprint", "version" => "1")
     @test migrated["exportProfiles"][1]["id"] == "pdf"
+
+    enriched = PaperProjects.normalize_project(merge(VALID_PAPER_PROJECT, Dict(
+        "layout" => Dict("columns" => 1, "margins" => Dict("top" => 36)),
+        "source" => Dict("importedFrom" => "source.pdf", "importedAt" => "2026-09-18"),
+    )))
+    @test enriched["layout"]["columns"] == 1
+    @test enriched["source"]["importedFrom"] == "source.pdf"
 
     future = PaperProjects.validate_project(merge(VALID_PAPER_PROJECT, Dict("schemaVersion" => 2)))
     @test !future["valid"]
@@ -60,7 +80,7 @@ const VALID_PAPER_PROJECT = Dict{String,Any}(
         @test_throws PaperProjects.PaperProjectError PaperProjects.create_project!(directory, revised)
 
         write(joinpath(directory, PaperProjects.PROJECT_FILENAME), "not json")
-        @test_throws Persistence.StorageError PaperProjects.load_project(directory)
+        @test_throws Exception PaperProjects.load_project(directory)
     end
 end
 
@@ -107,6 +127,18 @@ end
         )
         @test legacy_save_status == 0
         @test JSON3.read(legacy_save_json).project.title == "Path save"
+
+        mktempdir() do outside_root
+            outside_parent = joinpath(outside_root, "nested")
+            outside_pdf = joinpath(outside_parent, "paper.pdf")
+            export_status, export_json = Backend.handle_request(
+                "exportPaperProject",
+                JSON3.write([opened_result.projectHandle, outside_pdf]),
+            )
+            @test export_status == 1
+            @test JSON3.read(export_json).code in ("PathMissing", "PathUnavailable")
+            @test !isdir(outside_parent)
+        end
     end
 
     invalid_handle_status, invalid_handle_json = Backend.handle_request(

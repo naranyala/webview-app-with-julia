@@ -14,7 +14,7 @@ module ManualWebview
 
 using Libdl
 
-export Queue, Request, Window, bind_queue!, close!, create, create_queue, destroy!, destroy_queue!, eval!, html!, init!, is_open, maximize!, minimize!, next!, pump!, request_id, request_name, request_payload, restore!, return!, run!, set_size!, set_title!, terminate!
+export Queue, Request, Window, bind_queue!, close!, create, create_queue, destroy!, destroy_queue!, eval!, html!, init!, is_open, maximize!, minimize!, next!, pump!, queue_capacity, queue_size, queue_try_push!, request_id, request_name, request_payload, restore!, return!, run!, set_size!, set_title!, terminate!
 
 # Library paths. Override via environment variables for custom builds.
 const DEFAULT_LIBRARY = joinpath(dirname(@__DIR__), "native", "lib", "libwebview.so")
@@ -150,16 +150,20 @@ restore!(window::Window) = _window_action_restore(window)
 close!(window::Window) = _window_action_close(window)
 
 """
-    pump!()
+    pump!(; block=false)
 
-Process any pending GTK/GLib events without blocking. This is the non-blocking
-GLib main context iteration that keeps the window responsive. Called in the
-application's main loop; the main loop owns the sleep/poll cadence.
+Process GTK/GLib events. With `block=true`, wait until one event is available;
+this avoids a fixed-interval idle polling loop while keeping all GTK work on
+the window-owning thread.
 """
-function pump!()
-    # g_main_context_iteration(C_NULL, 0) processes pending events on the
-    # default GLib main context. The second arg `0` means non-blocking.
-    return ccall((:g_main_context_iteration, GLIB_LIBRARY), Cint, (Ptr{Cvoid}, Cint), C_NULL, 0)
+function pump!(; block::Bool=false)
+    return ccall(
+        (:g_main_context_iteration, GLIB_LIBRARY),
+        Cint,
+        (Ptr{Cvoid}, Cint),
+        C_NULL,
+        block ? 1 : 0,
+    )
 end
 
 function set_title!(window::Window, title::AbstractString)
@@ -234,6 +238,24 @@ end
 function next!(queue::Queue)
     handle = ccall((:julia_webview_queue_next, BRIDGE_LIBRARY), Ptr{Cvoid}, (Ptr{Cvoid},), queue.handle)
     handle == C_NULL ? nothing : Request(handle)
+end
+
+queue_capacity() = Int(ccall((:julia_webview_queue_capacity, BRIDGE_LIBRARY), Csize_t, ()))
+
+function queue_size(queue::Queue)
+    return Int(ccall((:julia_webview_queue_size, BRIDGE_LIBRARY), Csize_t, (Ptr{Cvoid},), queue.handle))
+end
+
+function queue_try_push!(queue::Queue, name::AbstractString, id::AbstractString, payload::AbstractString)
+    return Int(ccall(
+        (:julia_webview_queue_try_push, BRIDGE_LIBRARY),
+        Cint,
+        (Ptr{Cvoid}, Cstring, Cstring, Cstring),
+        queue.handle,
+        name,
+        id,
+        payload,
+    ))
 end
 
 function request_name(request::Request)

@@ -1,13 +1,12 @@
 #!/usr/bin/env julia
 
 """
-Measure the current idle bridge-loop baseline without opening a desktop window.
+Measure the retired fixed-interval bridge-loop baseline without opening a desktop window.
 
-The production loop in `bin/webview_app.jl` pumps GLib, drains the native
-bridge queue, and sleeps for 10 ms when idle. This harness exercises the same
-GLib/queue calls on an empty queue so the polling cadence can be recorded
-before changing the wake-up strategy. Wrap the command with `/usr/bin/time` to
-capture process CPU usage as well.
+The production loop now blocks in GLib until a UI event arrives, then drains a
+bounded bridge queue. This harness remains useful for comparing the old polling
+cadence against the new event-driven host. Wrap either command with
+`/usr/bin/time` to capture process CPU usage as well.
 
 Examples:
     julia --project=. scripts/measure_event_loop.jl
@@ -55,13 +54,13 @@ function main()
 
     elapsed_seconds = (time_ns() - started) / 1e9
     result = Dict(
-        "mode" => "bridge-idle-poll",
+        "mode" => "retired-bridge-idle-poll-baseline",
         "iterations" => iterations,
         "configuredIntervalMs" => interval_ms,
         "elapsedSeconds" => elapsed_seconds,
         "effectivePollsPerSecond" => elapsed_seconds > 0 ? iterations / elapsed_seconds : 0.0,
         "drainedRequests" => drained,
-        "nativeWakeup" => false,
+        "currentHostUsesBlockingWakeup" => true,
     )
     println(JSON3.write(result))
 end

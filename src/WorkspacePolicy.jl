@@ -2,7 +2,7 @@
 module WorkspacePolicy
 
 export PolicyError, authorize_project, authorize_read_file,
-    authorize_write_file, canonical_roots, contains_path
+    authorize_write_file, canonical_roots, contains_path, error_code
 
 struct PolicyError <: Exception
     code::Symbol
@@ -10,6 +10,14 @@ struct PolicyError <: Exception
 end
 
 Base.showerror(io::IO, error::PolicyError) = print(io, error.detail)
+
+"""Map a policy failure to the stable application error code used on the wire."""
+function error_code(error::PolicyError; missing_code="PathMissing")
+    error.code == :invalid && return "InvalidArgument"
+    error.code == :missing && return String(missing_code)
+    error.code == :forbidden && return "PathNotAllowed"
+    "PathUnavailable"
+end
 
 function canonical_roots(candidates)
     roots = String[]

@@ -8,23 +8,34 @@ dependency order: ManualWebview (no Julia deps) → AudioAnalysisAdapter (Aural)
 """
 module WebViewApp
 
-export AudioAnalysisAdapter, Backend, BibTeX, BlendReader, Diagnostics, FileTrees, Jobs, PDFGen,
-    PaperProjects, Persistence, StaticMediaAdapter, WorkspacePolicy,
+export AudioAnalysisAdapter, Backend, BibTeX, BindingManifest, BlendReader, Build, Deploy, Diagnostics, ErrorCodes, FileTrees, InternalLibraries, Jobs, MediaCache, PDFGen,
+    PaperProjects, Persistence, RendererCapability, StaticMediaAdapter, WorkspacePolicy,
     calculate_fibonacci, fibonacci, frontend_html, greet, main
 
 include("ManualWebview.jl")
+include("Build.jl")
+include("Deploy.jl")
+include("BindingManifest.jl")
 include("AudioAnalysisAdapter.jl")
+include("../packages/CooperativeJobManager.jl/src/CooperativeJobManager.jl")
+include("../packages/VersionedJSONStore.jl/src/VersionedJSONStore.jl")
+include("../packages/StructuredDiagnostics.jl/src/StructuredDiagnostics.jl")
 include("Jobs.jl")
 include("Persistence.jl")
 include("Diagnostics.jl")
 include("StaticMediaAdapter.jl")
 include("WorkspacePolicy.jl")
 include("PaperProjects.jl")
+include("ErrorCodes.jl")
+include("RendererCapability.jl")
+include("../packages/BoundedCache.jl/src/BoundedCache.jl")
+include("MediaCache.jl")
 include("fs/FileTrees.jl")
-include("pdf/PDFGen.jl")
+include("../packages/PDFGen.jl/src/PDFGen.jl")
 include("bibtex/BibTeX.jl")
 include("blender/BlendReader.jl")
 include("Backend.jl")
+include("InternalLibraries.jl")
 
 """Return a greeting for `name`."""
 function greet(name::AbstractString = "world")
@@ -65,12 +76,12 @@ function calculate_fibonacci(value)
     return Dict("input" => n, "result" => fibonacci(n))
 end
 
-"""Load the final self-contained frontend-preact production bundle."""
+"""Load the final frontend production bundle."""
 function frontend_html()
-    default_path = joinpath(dirname(@__DIR__), "frontend-preact", "dist", "index.html")
+    default_path = joinpath(dirname(@__DIR__), "frontend", "dist", "index.html")
     path = get(ENV, "JULIA_FRONTEND_HTML", default_path)
     isfile(path) || error(
-        "Frontend build not found at `$path`. Run `npm --prefix frontend-preact run build` " *
+        "Frontend build not found at `$path`. Run `npm --prefix frontend run build` " *
         "or set JULIA_FRONTEND_HTML to a built index.html path."
     )
     return read(path, String)

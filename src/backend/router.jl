@@ -13,6 +13,133 @@ function _clear_diagnostics(args)
     _ok(Dict("cleared" => true))
 end
 
+function _get_renderer_capabilities(args)
+    _ok(Dict("capabilities" => RendererCapability.list_capabilities()))
+end
+
+function _get_error_codes(args)
+    _ok(Dict("schemaVersion" => ErrorCodes.SCHEMA_VERSION, "codes" => ErrorCodes.all_codes()))
+end
+
+function _get_media_cache_stats(args)
+    _ok(Dict("schemaVersion" => 1, "stats" => BoundedCache.cache_stats(STATE.media_cache)))
+end
+
+function _clear_media_cache(args)
+    BoundedCache.cache_clear!(STATE.media_cache)
+    _ok(Dict("cleared" => true, "stats" => BoundedCache.cache_stats(STATE.media_cache)))
+end
+
+function _support_settings()
+    settings = _load_settings()
+    ui = get(settings, "ui", Dict{String,Any}())
+    plugins = get(settings, "plugins", Dict{String,Any}())
+    Dict{String,Any}(
+        "schemaVersion" => get(settings, "schemaVersion", 1),
+        "ui" => Dict(
+            "theme" => get(ui, "theme", "system"),
+            "fontSize" => get(ui, "fontSize", 14),
+        ),
+        "plugins" => Dict(
+            "enabled" => get(plugins, "enabled", Any[]),
+            "disabled" => get(plugins, "disabled", Any[]),
+        ),
+    )
+end
+
+function _export_support_bundle(args)
+    documents = joinpath(homedir(), "Documents")
+    isdir(documents) || mkpath(documents)
+    default_name = "webview-workbench-support-$(Dates.format(now(UTC), dateformat"yyyymmdd-HHMMSS")).json"
+    requested = isempty(args) || !(args[1] isa AbstractString) || isempty(strip(args[1])) ?
+        joinpath(documents, default_name) : String(args[1])
+    path, error = _validate_write_path(requested, "support bundle")
+    error === nothing || return _err(error...)
+
+    bundle = Dict{String,Any}(
+        "schemaVersion" => 1,
+        "generatedAt" => string(now(UTC)),
+        "application" => Dict(
+            "name" => "WebView Workbench",
+            "juliaVersion" => string(VERSION),
+            "platform" => string(Sys.MACHINE),
+            "os" => string(Sys.KERNEL),
+        ),
+        "capabilities" => RendererCapability.list_capabilities(),
+        "settings" => _support_settings(),
+        "diagnostics" => Diagnostics.recent(500),
+    )
+    try
+        Persistence.atomic_write!(path, JSON3.write(bundle))
+        _ok(Dict("path" => path, "size" => filesize(path), "entries" => length(bundle["diagnostics"])))
+    catch exception
+        _storage_failure(exception, "SupportBundle")
+    end
+end
+
+function _backup_paper_project(args)
+    length(args) >= 1 || return _err("InvalidArgument", "paper project path or handle is required")
+    path, error = _paper_project_scope(args[1])
+    error === nothing || return _err(error...)
+    try
+        project = PaperProjects.load_project(path)
+        backup_dir = joinpath(path, ".backups")
+        isdir(backup_dir) || mkpath(backup_dir)
+        timestamp = replace(string(Dates.now()), r"[^\d]" => "-")
+        backup_name = "backup-$(timestamp).json"
+        backup_path = joinpath(backup_dir, backup_name)
+        Persistence.atomic_write!(backup_path, JSON3.write(project))
+        _ok(Dict("path" => backup_path, "filename" => backup_name, "size" => filesize(backup_path)))
+    catch exception
+        _paper_error(exception)
+    end
+end
+
+function _restore_paper_project(args)
+    length(args) >= 2 || return _err("InvalidArgument", "paper project path and backup filename are required")
+    path, error = _paper_project_scope(args[1])
+    error === nothing || return _err(error...)
+    backup_name = args[2]
+    backup_name isa AbstractString && !isempty(strip(backup_name)) ||
+        return _err("InvalidArgument", "backup filename is required")
+    occursin("..", backup_name) && return _err("InvalidArgument", "backup filename is invalid")
+    backup_path = joinpath(path, ".backups", backup_name)
+    isfile(backup_path) || return _err("PathNotFound", "backup not found: $backup_name")
+    try
+        raw = read(backup_path, String)
+        project = Persistence.normalize_json(JSON3.read(raw))
+        project isa AbstractDict || return _err("InvalidPaperProject", "backup contains invalid data")
+        saved = PaperProjects.save_project!(path, project)
+        _ok(_paper_result(path, saved, args[1]))
+    catch exception
+        _paper_error(exception)
+    end
+end
+
+function _list_paper_project_backups(args)
+    length(args) >= 1 || return _err("InvalidArgument", "paper project path or handle is required")
+    path, error = _paper_project_scope(args[1])
+    error === nothing || return _err(error...)
+    backup_dir = joinpath(path, ".backups")
+    if !isdir(backup_dir)
+        return _ok(Dict("backups" => Any[], "count" => 0))
+    end
+    backups = Any[]
+    try
+        for file in sort(readdir(backup_dir); rev=true)
+            endswith(file, ".json") || continue
+            full_path = joinpath(backup_dir, file)
+            push!(backups, Dict{String,Any}(
+                "filename" => file,
+                "size" => filesize(full_path),
+                "path" => full_path,
+            ))
+        end
+    catch
+    end
+    _ok(Dict("backups" => backups, "count" => length(backups)))
+end
+
 # Add ordinary RPC bindings here. Window operations are intentionally absent:
 # bin/webview_app.jl handles them inline because they require the Window handle.
 const HANDLERS = Dict{String,Function}(
@@ -23,6 +150,17 @@ const HANDLERS = Dict{String,Function}(
     "getStatus"             => _get_status,
     "getDiagnostics"        => _get_diagnostics,
     "clearDiagnostics"      => _clear_diagnostics,
+    "getRendererCapabilities" => _get_renderer_capabilities,
+    "getErrorCodes"         => _get_error_codes,
+    "getMediaCacheStats"    => _get_media_cache_stats,
+    "clearMediaCache"       => _clear_media_cache,
+    "exportSupportBundle"   => _export_support_bundle,
+    "backupPaperProject"    => _backup_paper_project,
+    "restorePaperProject"   => _restore_paper_project,
+    "listPaperProjectBackups" => _list_paper_project_backups,
+    "addSearchSource"         => _add_search_source,
+    "addMediaSource"          => _add_media_source,
+    "getSearchSources"        => _get_search_sources,
     "getNotes"              => _get_notes,
     "createNote"            => _create_note,
     "updateNote"            => _update_note,
@@ -42,6 +180,9 @@ const HANDLERS = Dict{String,Function}(
     "parseBibTeX"           => _parse_bibtex,
     "importBibliography"    => _import_bibliography,
     "exportBibliography"    => _export_bibliography,
+    "addBibTeXToProject"    => _add_bibtex_to_project,
+    # Backward-compatible alias for projects created before the casing was
+    # standardized; new frontend code uses addBibTeXToProject.
     "addBibtexToProject"    => _add_bibtex_to_project,
     "getSettings"           => _get_settings,
     "saveSettings"          => _save_settings_handler,
@@ -66,6 +207,7 @@ const HANDLERS = Dict{String,Function}(
     "cancelMediaConversion" => _cancel_media_conversion,
     "getMediaCapabilities"  => _get_media_capabilities,
     "htmlToText"            => _html_to_text,
+    "listDirectory"         => _list_directory,
 )
 const RESERVED_SHELL_BINDINGS = Set((
     "minimizeWindow",
@@ -137,23 +279,17 @@ function handle_request(name::AbstractString, payload::AbstractString)
         parsed = try JSON3.read(result) catch; nothing end
         code = parsed === nothing ? "ApplicationError" : String(get(parsed, :code, "ApplicationError"))
         message = parsed === nothing ? "The operation failed." : String(get(parsed, :message, "The operation failed."))
-        finish_error(code, message)
+        return finish_error(code, message)
     catch e
         finish_error("InternalError", "An unexpected backend error occurred."; error=e)
     end
 end
 
 function _error_category(code::AbstractString)
-    startswith(code, "Storage") && return "storage"
-    occursin("Path", code) && return "filesystem"
-    occursin("Timeout", code) && return "timeout"
-    code in ("InvalidArgument", "MalformedJson", "PayloadTooLarge") && return "validation"
-    code in ("Unavailable", "BackendUnavailable", "UnknownBinding") && return "capability"
-    code == "InternalError" && return "internal"
-    "application"
+    ErrorCodes.category(code)
 end
 
-_recoverable_error(code::AbstractString) = code != "InternalError" && !endswith(code, "Corrupt")
+_recoverable_error(code::AbstractString) = ErrorCodes.recoverable(code)
 
 _error_envelope(code, message, request_id, operation, category, recoverable) =
     _err(code, message; request_id, operation, category, recoverable)
